@@ -1,6 +1,6 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH 2013-2014
+rem Extended Batch Makefile by David KOCH 2013-2016
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument  %0     %1   %2           %3               %4
 rem                   |    |            |                |
@@ -198,7 +198,8 @@ rem Process location tag first
 set "vpre=LOC_ %vpre%"
 
 rem Sort unresolved file for access optimisation
-sort "%vslv%.0" > "%vslv%.1"
+rem sort "%vslv%.0" > "%vslv%.1"
+copy /y "%vslv%.0" "%vslv%.1" 1>nul 2>nul 
 
 rem Multipass (c) Leeloo Dallas
 for /l %%h in (1,1,3) do (
@@ -231,7 +232,8 @@ for /l %%h in (1,1,3) do (
     )
 )
 rem You can compare "%vslv%.1" with "%vsrt%.0" to check the variable expansion
-sort "%vslv%.3" > "%vsrt%.0"
+rem sort "%vslv%.3" > "%vsrt%.0"
+copy /y "%vslv%.3" "%vsrt%.0" 1>nul 2>nul 
 
 rem Parse and execute commands
 echo Executing make file... %clog%
@@ -741,7 +743,9 @@ rem                exit /b !verr!
                     if not "!mobj!"=="" dir "!mdst!\*.!mobj!" %vdir% >> "%vsrt%.%%i.6"
                     if not "!mbin!"=="" dir "!mdst!\*.!mbin!" %vdir% >> "%vsrt%.%%i.6"
                     if exist "%vsrt%.%%i.6" (
-                        sort "%vsrt%.%%i.6" > "%vsrt%.%%i.5"
+rem                        sort "%vsrt%.%%i.6" > "%vsrt%.%%i.5"
+                        copy /y "%vsrt%.%%i.6" "%vsrt%.%%i.5" 1>nul 2>nul 
+
                         rem Remove already duplicated files
                         findstr /i /v "!mdup!" "%vsrt%.%%i.5" > "%vsrt%.%%i.6"
 rem echo mdup=!mdup!
