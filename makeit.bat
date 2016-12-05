@@ -32,14 +32,16 @@ rem                  run      - launch the selected debugger executable
 rem                  map      - perform mapping analysis
 
 rem Todo list (Oh No! More Lemmings)
+rem Correct error management through batch files for multi-core compilation
 rem Add a LOG_CNF entry to give a default configuration file name (no ext file?)
-rem Praise the Lords
+rem Praise the Lords...
 
 rem Notes for maintenance
 rem If something breaks, check the variables used for the 8191 bytes limit bug
-rem Variable resolving if fragile
+rem Variable resolving is very fragile, stupid nasty delayed expansion stuff
 
 rem For correct string substitution, need delayed variable expansion
+rem Beware: you'll scratch your head several times with this shit
 setlocal enabledelayedexpansion
 
 rem Set this variable to get some fancy debug output
@@ -78,7 +80,7 @@ if "%1"=="map" set "vtxt=mapping"
 rem Set command prefix sequence
 if "%1"=="all" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_ RUN_"
 if "%1"=="partial" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_"
-if "%1"=="rebuild" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_"
+if "%1"=="rebuild" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ LOC_"
 if "%1"=="quick" set "vpre=PRE_ CPP_ LNK_ PST_ FLH_ RUN_"
 if "%1"=="fast" set "vpre=PRE_ CPP_ LNK_ PST_ FLH_"
 if "%1"=="build" set "vpre=PRE_ CPP_ LNK_ PST_"
@@ -90,7 +92,7 @@ if "%1"=="flash" set "vpre=FLH_"
 if "%1"=="run" set "vpre=RUN_"
 if "%1"=="map" set "vpre=MAP_"
 
-rem Set argument list
+rem Set argument list (currently supported suffixes)
 set "varg=REM EXE SRC DST CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC DEL XPY CPY ARG DEF INC LIB TMP"
 
 rem Set default variables
@@ -120,7 +122,7 @@ if not "%3"=="nolog" (
         set "vlog=%vdst%\%1.log"
     )
 )
-    
+
 rem Set logging command
 rem Note : tee.exe is part of the 'msys' package in the Eclipse folder
 rem Warn : tee.exe is NOT compatible with Jenkins, thus avoid using it (use "nolog")
@@ -156,89 +158,212 @@ echo Makeit log : !vlog:%vrel%=.\! %clog%
 echo --- %vtxt% --------------------------------------------------------------- %clog%
 echo. %clog%
 
-rem Resolve ${...} variables with their corresponding parameter
+rem Start the job
 echo Parsing make file... %clog%
 
+rem Resolve include files
+echo Resolving static include files... %clog%
+
 rem Multi-level include, aggregate files up to 20% cooler
-copy /y "%vsrc%" "%vslv%.1" 1>nul 2>nul
+copy /y "%vsrc%" "%vslv%.0" 1>nul 2>nul
+
+rem Three levels include (if more, you should question yourself)
 for /l %%h in (1,1,3) do (
-    if exist "%vslv%.1" (
-        rem Find INCLUDE tags
-        findstr "INCLUDE=" "%vslv%.1" > "%vslv%.0"
-        rem Add all the rest
-        findstr /v "INCLUDE=" "%vslv%.1" >> "%vslv%.2"
-        del "%vslv%.1" /q 1>nul 2>nul
-        
-        rem If INCLUDE tag found
-        if exist "%vslv%.0" for /f %%i in (%vslv%.0) do (
-            set "vinc=%%i"
-            set "vinc=!vinc:~8!"
-            rem Add configuration to the INCLUDE path
-            type !vinc! >> "%vslv%.1"
-        )
-    )
-)
-
-rem Solve destination path with current configuration
-findstr "LOC_DST=" "%vslv%.2" > "%vslv%.1"
-rem If LOC_DST tag found
-if exist "%vslv%.1" for /f %%i in (%vslv%.1) do (
-    rem Add configuration to the LOC_DST path
-    echo %%i\%2>> "%vslv%.0"
-)
-rem Add all the rest
-findstr /v "LOC_DST=" "%vslv%.2" >> "%vslv%.0"
-
-rem Get custom command prefix sequence
-for /f "tokens=2 delims==" %%i in ('findstr "%1=" %vslv%.0') do (
-	set "vpre=%%i"
-)
-
-rem Process location tag first
-set "vpre=LOC_ %vpre%"
-
-rem Sort unresolved file for access optimisation
-rem sort "%vslv%.0" > "%vslv%.1"
-copy /y "%vslv%.0" "%vslv%.1" 1>nul 2>nul 
-
-rem Multipass (c) Leeloo Dallas
-for /l %%h in (1,1,3) do (
-    rem Beware: this only resolve paths, cannot be used for argument replacement
+    echo   Inclusion level %%h/3 %clog%
     if exist "%vslv%.0" (
-        rem Keep unsolved argument to process
-        findstr "${.*}" "%vslv%.0" > "%vslv%.2"
-        rem Keep resolved arguments in a separate file
-        findstr /v "${.*}" "%vslv%.0" >> "%vslv%.3"
-        rem Ensure no more pass if no more resolve to do
-        del "%vslv%.0" /q 1>nul 2>nul
-        rem Each line with token to resolve
-        for /f %%i in (%vslv%.2) do (
-            rem Each token found
-            for /f "tokens=2 delims={}" %%j in ("%%i") do (
-                rem Look for the resolved parameter
-                for /f "tokens=2 delims==" %%k in ('findstr "%%j=" "%vslv%.1"') do (
-                    set "vtmp=%%i"
-                    rem Replace conf token with current 'conf' parameter
-                    set "vtmp=!vtmp:${CONF}=%2!"
-                    rem Replace token with resolved and expanded (~f) parameter
-                    set "vtmp=!vtmp:${%%j}=%%~fk!"
-                    rem Ensure backslash in path
-                    set "vtmp=!vtmp:/=\!"
-                    rem Store the resolved argument for the next pass
-                    echo !vtmp!>> "%vslv%.0"
+        rem Find INCLUDE tags
+        findstr "INCLUDE=" "%vslv%.0" > "%vslv%.1"
+        rem If INCLUDE tag found (beware, 'findstr' creates 0 byte files if nothing found)
+rem        if exist "%vslv%.1" (
+        call :expandsize "%vslv%.1"
+        if not "!pexp!"=="0" (
+            rem Add all the rest in a separate file
+            findstr /v "INCLUDE=" "%vslv%.0" > "%vslv%.2"
+
+            rem Save original file before recreation
+            copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
+            del "%vslv%.0" /q 1>nul 2>nul
+
+            set /a adst=0
+            rem Read first rest line
+            call :readline !adst! %vslv%.2
+
+            rem Read original file (include blank lines through 'findstr')
+            for /f "tokens=1,* delims=:" %%i in ('findstr /n ".*" "%vslv%.3"') do (
+                rem Read second token from 'findstr' ('linenum:string' : %%i:%%j)
+                if "%%j"=="!plin!" (
+                    rem Inject old line
+                    if "%%j"=="" (
+                        echo.>> "%vslv%.0"
+                    ) else (
+                        echo %%j>> "%vslv%.0"
+                    )
+
+                    set /a adst+=1
+                    rem Get next rest line
+                    call :readline !adst! %vslv%.2
+                ) else (
+                    rem Inject include file
+                    set "vinc=%%j"
+                    rem Get the name of the file to include
+                    set "vinc=!vinc:~8!"
+                    call :expandpath "!vinc!" && set "vinc=!pexp!"
+                    rem Add configuration to the INCLUDE path
+                    type !vinc!>> "%vslv%.0"
                 )
             )
         )
     )
 )
-rem You can compare "%vslv%.1" with "%vsrt%.0" to check the variable expansion
-rem sort "%vslv%.3" > "%vsrt%.0"
-copy /y "%vslv%.3" "%vsrt%.0" 1>nul 2>nul 
+
+rem Solve destination path with current configuration
+findstr "LOC_DST=" "%vslv%.0" > "%vslv%.1"
+rem If LOC_DST tag found (beware, 'findstr' creates 0 byte files if nothing found)
+call :expandsize "%vslv%.1"
+if not "!pexp!"=="0" (
+    rem Adding config name to destination path (if defined)
+    echo Adding config name to LOC_DST path... %clog%
+
+    rem Get the other lines in a separate file
+    findstr /v "LOC_DST=" "%vslv%.0" > "%vslv%.2"
+
+    rem Save original file before recreation
+    copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
+    del "%vslv%.0" /q 1>nul 2>nul
+
+    set /a adst=0
+    rem Read first rest line
+    call :readline !adst! %vslv%.2
+
+    rem Read original file (include blank lines through 'findstr')
+    for /f "tokens=1,* delims=:" %%i in ('findstr /n ".*" "%vslv%.3"') do (
+        rem Read second token from 'findstr' ('linenum:string' : %%i:%%j)
+        if "%%j"=="!plin!" (
+            rem Inject old line
+            if "%%j"=="" (
+                echo.>> "%vslv%.0"
+            ) else (
+                echo %%j>> "%vslv%.0"
+            )
+
+            set /a adst+=1
+            rem Get next rest line
+            call :readline !adst! %vslv%.2
+        ) else (
+            rem Add configuration to the LOC_DST path
+            echo %%j\%2>> "%vslv%.0"
+        )
+
+    )
+)
+
+rem Find custom sequence name if defined (from command line parameter)
+for /f "tokens=2 delims==" %%i in ('findstr "%1=" %vslv%.0') do (
+    rem Get sequence tags
+	set "vpre=%%i"
+)
+
+rem Remove location tag
+set "vpre=%vpre% "
+set "vpre=%vpre:LOC_ =%"
+rem Remove trailing blank
+if "%vpre:~0,1%"==" " set "vpre=!vpre:~1!"
+rem Process location tag first
+set "vpre=LOC_ %vpre%"
+
+rem Resolve ${...} variables with their corresponding parameter
+echo Resolving static ${path} and ${CONF}... %clog%
+
+rem Multipass (c) Leeloo Dallas
+for /l %%h in (1,1,3) do (
+    echo   Resolution level %%h/3 %clog%
+    rem Beware: this only resolve paths, it CANNOT be used for argument replacement
+    rem Because: how can you differentiate a file (to expand) from an argument?
+    if exist "%vslv%.0" (
+        rem Find unsolved argument to process
+        findstr "${.*}" "%vslv%.0" > "%vslv%.1"
+
+       rem If unsolved argument found (beware, 'findstr' creates 0 byte files if nothing found)
+rem        if exist "%vslv%.1" (
+        call :expandsize "%vslv%.1"
+        if not "!pexp!"=="0" (
+            rem Find resolved arguments in a separate file
+            findstr /v "${.*}" "%vslv%.0" > "%vslv%.2"
+
+            rem Save original file before recreation
+            copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
+            del "%vslv%.0" /q 1>nul 2>nul
+
+            set /a adst=0
+            rem Read first rest line
+            call :readline !adst! %vslv%.2
+
+            rem Read original file (include blank lines through 'findstr')
+            for /f "tokens=1,* delims=:" %%i in ('findstr /n ".*" "%vslv%.3"') do (
+                rem Read second token from 'findstr' ('linenum:string' : %%i:%%j)
+                if "%%j"=="!plin!" (
+                    rem Inject old line
+                    if "%%j"=="" (
+                        echo.>> "%vslv%.0"
+                    ) else (
+                        echo %%j>> "%vslv%.0"
+                    )
+
+                    set /a adst+=1
+                    rem Get next rest line
+                    call :readline !adst! %vslv%.2
+                ) else (
+                    rem Each token found
+                    for /f "tokens=2 delims={}" %%k in ("%%j") do (
+                        rem Get ${} line
+                        set "vtmp=%%j"
+
+                        rem Replace conf token with current 'conf' parameter
+                        set "vtmp=!vtmp:${CONF}=%2!"
+                        rem Replace cd token with current directory
+                        set "vtmp=!vtmp:${CD}=%vrel%!"
+
+                        rem Look for the resolved parameter
+                        for /f "tokens=2 delims==" %%l in ('findstr "%%k=" "%vslv%.3"') do (
+                            rem Check if it can be solved as a path
+                            set "vinc=%%~fl"
+                            set "vinc=!vinc:%vrel%=!"
+
+                            rem If not solved into current path
+                            if not "!vinc!"=="%%l" (
+                                rem Replace token with resolved and expanded path (~f) parameter
+                                set "vtmp=!vtmp:${%%k}=%%~fl!"
+                                rem Ensure backslash in path (because 'dir' produces such)
+                                set "vtmp=!vtmp:/=\!"
+                            ) else (
+                                rem Replace token with target value
+                                set "vtmp=!vtmp:${%%k}=%%l!"
+                            )
+                        )
+
+                        rem Store the resolved argument for the next pass
+                        echo !vtmp!>> "%vslv%.0"
+                    )
+                )
+            )
+        )
+    )
+)
+
+rem Quit
+rem goto :eof
+
+rem You can compare "%vslv%.0" with "%vslv%.3" to check the variable expansion
+rem sort "%vslv%.0" > "%vsrt%.0"
+copy /y "%vslv%.0" "%vsrt%.0" 1>nul 2>nul
 
 rem Parse and execute commands
 echo Executing make file... %clog%
+
+rem And now the show begins
 set "mrun=1"
-rem Each command prefix
+
+rem For each command prefix
 for %%i in (%vpre%) do (
     if not "%%i"=="" (
         set "vexe="
@@ -266,7 +391,7 @@ for %%i in (%vpre%) do (
         set "mdel="
         set "mxpy="
         set "mcpy="
-        
+
         set "marg="
         set "mdef="
         set "minc="
@@ -285,8 +410,10 @@ for %%i in (%vpre%) do (
                 rem Remove the equal sign (batch cannot handle them properly)
                 set "vtmp=!vtmp:~1!"
 
-                if not "!vtmp!"=="!vtmp:\..=!" (
-                    call :expandpath "!vtmp!" && set "vtmp=!pexp!"
+                rem Try to resolve embedded path (tricky if inside an argument)
+                set "vtmp=!vtmp:/=\!"
+                if not "!vtmp!"=="!vtmp:..\=!" (
+rem                    call :expandpath "!vtmp!" && set "vtmp=!pexp!"
                 )
 
                 rem Try to expand folder
@@ -321,14 +448,14 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
                 if "%%j"=="BIN" set "mbin=!vtmp!"
                 if "%%j"=="DUP" set "mdup=!vtmp!"
 
-                rem File operation specific arguments
+                rem File operation specific arguments (accumulated)
                 if "%%j"=="EXT" set "mext=!mext! !vtmp!"
                 if "%%j"=="EXC" set "mexc=!mexc! !vtmp!"
                 if "%%j"=="DEL" set "mdel=!mdel! !vtmp!"
                 if "%%j"=="XPY" set "mxpy=!mxpy! !vtmp!"
                 if "%%j"=="CPY" set "mcpy=!mcpy! !vtmp!"
-                
-                rem Via-method compatible arguments
+
+                rem Via-method compatible arguments (accumulated)
                 if "!mvia!"=="" (
                     if "%%j"=="ARG" set "marg=!marg! !vtmp!"
                     if "%%j"=="DEF" set "mdef=!mdef! -D!vtmp!"
@@ -344,7 +471,20 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
                 )
             )
         )
-        
+
+        rem Adapt exclusion list
+        if not "!mexc!"=="" (
+            rem Remove double (back)slash before doubling them again
+rem            for /l %%l in (1,1,5) do set "mexc=!mexc://=/!"
+rem            for /l %%l in (1,1,5) do set "mexc=!mexc:\\=\!"
+            rem Transform everything into slash
+rem            set "mexc=!mexc:\=/!"
+            rem Transform everything into backslash
+            set "mexc=!mexc:/=\!"
+            rem Double backslash for 'findstr'
+            set "mexc=!mexc:\=\\!"
+        )
+
         rem Remove the ending backslash of path
         call :cleanpath "!mexe!" && set "mexe=!pcln!"
         call :cleanpath "!msrc!" && set "msrc=!pcln!"
@@ -357,10 +497,10 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
             set "mcpu=%cmax%"
         ) else (
             set /a "mcpu=!mcpu!-(1-%cmin%)"
-            if !mcpu! gtr %cmax% set "mcpu=%cmax%"
+            if !mcpu! gtr %cmax% set /a "mcpu=%cmax%"
         )
 
-        rem Correct the destination path (deprecated)
+        rem Correct the destination path (deprecated, moved before static resolution)
 rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
 
         rem If no source path, switch to destination path
@@ -387,11 +527,11 @@ rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
 				echo --!mrem! %clog%
 			)
 		)
-        
+
         if not "!mexe!"=="" if "!msrc!"=="" (
             echo  ERROR : No source path for "%%i" ! %clog%
         ) else (
-            rem Beware buddies, "LOC_" *have* to be always the first tag in %vpre%
+            rem Beware buddies, "LOC_" always *HAVE* to be the first tag in %vpre%
             if "%%i"=="LOC_" (
                 rem Fetch the path of binaries
                 set "mloc=!mexe!"
@@ -399,23 +539,23 @@ rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
                 rem Yeah, because if the path doesn't exist, file creation fails
                 if not "!mdst!"=="" (
                     echo  Creating destination folder tree... %clog%
-rem echo msrc=!msrc! %clog%
-rem echo mdst=!mdst! %clog%
+if not "!vdeb!"=="" echo msrc=!msrc!
+if not "!vdeb!"=="" echo mdst=!mdst!
                     mkdir "!mdst!" 2>nul
                     if not "!msrc!"=="!mdst!" (
                         rem Copy empty folder tree
                         xcopy "!msrc!" "!mdst!" /q /t /e /y 2>nul
-                        rem Remove the 'makefiles' directory (Itron specific)
-                        rmdir "!mdst!\makefiles" /s /q 1>nul 2>nul
+                        rem Remove the 'makefiles' directory (specific)
+rem                        rmdir "!mdst!\makefiles" /s /q 1>nul 2>nul
                     )
 
                     rem Delete the files from destination folder
                     for /l %%l in (1,1,1) do if "!mdel:~0,1!"==" " set "mdel=!mdel:~1!"
                     if not "!mdel!"=="" (
-rem echo mdel=!mdel!
+if not "!vdeb!"=="" echo mdel=!mdel!
                         echo  Deleting destination files... %clog%
                         for %%j in (!mdel!) do (
-rem echo del=!mdst!\*.%%j
+if not "!vdeb!"=="" echo del=!mdst!\*.%%j
                             del /s /q !mdst!\*.%%j 1>nul 2>nul
                         )
                     )
@@ -423,10 +563,10 @@ rem echo del=!mdst!\*.%%j
                     rem Xcopy the files into destination folder
                     for /l %%l in (1,1,1) do if "!mxpy:~0,1!"==" " set "mxpy=!mxpy:~1!"
                     if not "!mxpy!"=="" (
-rem echo mxpy=!mxpy!
+if not "!vdeb!"=="" echo mxpy=!mxpy!
                         echo  Xcopying source files... %clog%
                         for %%j in (!mxpy!) do (
-rem echo xcopy=!msrc!\*.%%j
+if not "!vdeb!"=="" echo xcopy=!msrc!\*.%%j
                             xcopy "!msrc!\*.%%j" "!mdst!" /s /y /i /q 1>nul 2>nul
                         )
                     )
@@ -437,7 +577,7 @@ rem echo xcopy=!msrc!\*.%%j
                         echo  Copying specific files... %clog%
                         set "vcmd=!mcpy!"
                         call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "" && set "mcpy=!pcmd!"
-rem echo mcpy=!mcpy!
+if not "!vdeb!"=="" echo mcpy=!mcpy!
                         for %%j in (!mcpy!) do (
                             if exist %%j copy /y "%%j" "!mdst!" 1>nul 2>nul
                         )
@@ -451,10 +591,10 @@ rem echo mcpy=!mcpy!
                     if "%%j"=="EXE" (
                         set "vexe=!vexe!!mexe!"
                         rem If command line started with a quote (note the hideous syntax)
-                        if "!vexe:~0,1!"==^"^"^" set "vexe=!vexe!"" 
+                        if "!vexe:~0,1!"==^"^"^" set "vexe=!vexe!""
 rem                        set "vexe=!vexe! "
                     )
-                    
+
                     if "!mvia!"=="" (
                         if "%%j"=="SRC" set "vtmp=!vtmp!!msrc! "
                         if "%%j"=="DST" set "vtmp=!vtmp!!mdst! "
@@ -468,7 +608,7 @@ rem                        set "vexe=!vexe! "
                         if "%%j"=="EXT" set "vtmp=!vtmp!"$[THIS]" "
                         if "%%j"=="EXC" set "vtmp=!vtmp!!mexc! "
                         if "%%j"=="LST" set "vtmp=!vtmp!$[LIST] "
-                        
+
                         rem Via-method compatible arguments
                         if "%%j"=="ARG" set "vtmp=!vtmp!!marg! "
                         if "%%j"=="DEF" set "vtmp=!vtmp!!mdef! "
@@ -488,7 +628,7 @@ rem                        set "vexe=!vexe! "
                         if "%%j"=="EXT" echo "$[THIS]">> "%vsrt%.%%i.via"
                         if "%%j"=="EXC" echo !mexc!>> "%vsrt%.%%i.via"
                         if "%%j"=="LST" echo $[LIST]>> "%vsrt%.%%i.via"
-                        
+
                         rem Via-method compatible arguments
                         if "%%j"=="ARG" type "%vsrt%.%%i.arg" >> "%vsrt%.%%i.via"
                         if "%%j"=="DEF" type "%vsrt%.%%i.def" >> "%vsrt%.%%i.via"
@@ -498,34 +638,43 @@ rem                        set "vexe=!vexe! "
                     )
                 )
 
+if not "!vdeb!"=="" echo arg-vtmp=%%j-!vtmp!
+
                 rem Clean up the command line
                 set "vcmd=!vexe!" && call :cleanvcmd && set "vexe=!pcmd!"
                 set "vcmd=!vtmp!" && call :cleanvcmd && set "vtmp=!pcmd!"
 
                 rem Each extension, list files
                 if not "!mext!"=="" for %%a in (!mext!) do (
-rem echo msrc=%%i--!msrc!\*.%%a %clog%
+if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
                     dir "!msrc!\*.%%a" %vdir% >> "%vsrt%.%%i.0" 2>nul
+                ) else (
+                    rem If no extension, execute at least once
+rem                    echo  > "%vsrt%.%%i.0" 2>nul
                 )
 
                 rem If linker and destination link files list present
                 if "%%i"=="LNK_" if not "!mlnk!"==""  if exist %vlnk%.0 (
-rem                   copy /y "%vlnk%.0" "%vsrt%.%%i.0" 1>nul 2>nul 
+rem                   copy /y "%vlnk%.0" "%vsrt%.%%i.0" 1>nul 2>nul
                    findstr "!mlnk!" "%vlnk%.0" > "%vsrt%.%%i.0"
                 )
 
+if not "!vdeb!"=="" echo   Listing and excluding...
+
                 rem List real files to process
                 set "vlst="
-rem if not "!mexc!"=="" echo mexc=!mexc!
+if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
                 if exist %vsrt%.%%i.0 (
                     rem The 'findstr' command is buggy, never exclude only /xxx/
                     if "!mexc!"=="" (
                         rem Keep all files
                         copy "%vsrt%.%%i.0" "%vsrt%.%%i.4" /y 1>nul 2>nul
                     ) else (
-                        rem Remove excluded files
+                        rem Remove excluded files (at least 'dummy /xxx/')
                         findstr /i /v "!mexc!" "%vsrt%.%%i.0" > "%vsrt%.%%i.4"
                     )
+
+if not "!vdeb!"=="" echo     Listing remaining files...
 
                     rem List the remaining files
                     if exist %vsrt%.%%i.4 (
@@ -536,7 +685,7 @@ rem                            for /f %%a in (%vexc%) do set "mexc=!mexc! %%a"
                             copy "%vsrt%.%%i.5" "%vsrt%.%%i.4" /y 1>nul 2>nul
                             del "%vsrt%.%%i.5" /q 1>nul 2>nul
                         )
-                    
+
                         for /f %%a in (%vsrt%.%%i.4) do (
                             echo %%a>> "%vsrt%.%%i.1"
                             set "vlst=!vlst! %%a"
@@ -544,11 +693,15 @@ rem                            for /f %%a in (%vexc%) do set "mexc=!mexc! %%a"
                             call set "vlst=%%vlst:!msrc!=.%%"
                         )
                     )
-                    
+
+if not "!vdeb!"=="" echo     Remove remaining files...
+
                     rem Remove the remaining files list
                     del "%vsrt%.%%i.4" /q 1>nul 2>nul
-rem if not "!vlst!"=="" echo !vlst! > "%vsrt%.%%i.4"
+rem                    if not "!vlst!"=="" echo !vlst! > "%vsrt%.%%i.4"
                 )
+
+if not "!vdeb!"=="" echo   File list finished...
 
                 rem Linking just requires one pass with many inputs (LST)
                 if "%%i"=="LNK_" (
@@ -563,17 +716,26 @@ rem if not "!vlst!"=="" echo !vlst! > "%vsrt%.%%i.4"
                 rem Display here a false message because the real work is done in the loop below
                 if not "!mdep!"=="" echo  Checking dependencies... %clog%
 
+if not "!vdeb!"=="" echo   Executing command on each listed file...
+
                 rem Now execute the commands for each source files found
                 if exist %vsrt%.%%i.1 for /f %%a in (%vsrt%.%%i.1) do (
                     rem Create the relative destination path from source path
                     set "vrel=%%~dpa"
+
+if not "!vdeb!"=="" echo     vrel=!vrel!
+if not "!vdeb!"=="" echo     msrc=!msrc!
+if not "!vdeb!"=="" echo     mdst=!mdst!
+
                     set "vrel=!vrel:/=\!"
                     if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
                     call set "vrel=%%vrel:!msrc!=!mdst!%%"
 
+if not "!vdeb!"=="" echo     Checking if file is newer...
+
                     rem File to process flag
                     set "vchk="
-                    
+
                     rem Check if the source file is newer than destination file
                     set "vobj="
                     if not "!mobj!"=="" (
@@ -598,10 +760,12 @@ rem if not "!vlst!"=="" echo !vlst! > "%vsrt%.%%i.4"
                         set "vchk=1"
                     )
 
+if not "!vdeb!"=="" echo     Checking file dependencies...
+
                     rem Check file dependencies (can be quite long, sadly)
                     set "vdep="
                     rem Has been currently disabled due to poor xcopy performance
-if "!mdep!"=="toto" if exist !vobj! if not "!mdep!"=="" (
+if not "!mdep!"=="TOTO" if exist !vobj! if not "!mdep!"=="" (
                         rem Try in destination folder first
                         set "vdep=!mdst!\%%~na.!mdep!"
                         rem Try in relative folder next
@@ -635,11 +799,13 @@ if "!mdep!"=="toto" if exist !vobj! if not "!mdep!"=="" (
                             call :waitcpu
                         )
                         del %lcpu%.!cnxt! /q 1>nul 2>nul
-                        
+
+if not "!vdeb!"=="" echo       Adapt destination file...
+
                         rem Adapt destination link file if found
                         if not "%%i"=="LNK_" if not "!mlnk!"=="" (
                             set "vcmd=!mlnk!"
-                            rem Pass the file list only if used (try to avoid the 8192 bytes bug)
+                            rem Pass the file list only if used (try to avoid the 8191 bytes bug)
                             if not "!mlnk!"=="!mlnk:$[LIST]=!" (
                                 call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
                             ) else (
@@ -648,7 +814,9 @@ if "!mdep!"=="toto" if exist !vobj! if not "!mdep!"=="" (
                             set "vcmd=!pcmd!"
                             echo !vcmd!>> "%vlnk%.0"
                         )
-                            
+
+if not "!vdeb!"=="" echo       Create argument list...
+
                         if "!mvia!"=="" (
                             rem Get the clean command line
                             set "vcmd=!vtmp!"
@@ -692,7 +860,9 @@ if "!mdep!"=="toto" if exist !vobj! if not "!mdep!"=="" (
                             rem Set the via file
                             set "vcmd=!mvia!"%lvia%.!cnxt!""
                         )
-                        
+
+if not "!vdeb!"=="" echo       Process file...
+
                         rem Keep the expanded command line for debugging purpose
                         echo !vexe! !vcmd!>> "%vsrt%.%%i.2"
                         if not "!mvia!"=="" type "%lvia%.!cnxt!" >> "%vsrt%.%%i.2"
@@ -705,7 +875,7 @@ if "!mdep!"=="toto" if exist !vobj! if not "!mdep!"=="" (
                         rem Log the executed command line (in case of lock conflict)
                         echo !vexe! !vcmd!>> "%vsrt%.%%i.3"
                         if not "!mvia!"=="" type "%lvia%.!cnxt!" >> "%vsrt%.%%i.3"
-                        
+
                         rem The 'affinity' parameter BITFIELD select the CPU
                         set /a "crun=!cnxt!-1"
                         call :tohex !crun!
@@ -724,7 +894,7 @@ rem                        exit /b !verr!
                     )
                 )
             )
-            
+
             call :waitall
 
             rem Check exit code
@@ -744,20 +914,20 @@ rem                exit /b !verr!
                     if not "!mbin!"=="" dir "!mdst!\*.!mbin!" %vdir% >> "%vsrt%.%%i.6"
                     if exist "%vsrt%.%%i.6" (
 rem                        sort "%vsrt%.%%i.6" > "%vsrt%.%%i.5"
-                        copy /y "%vsrt%.%%i.6" "%vsrt%.%%i.5" 1>nul 2>nul 
+                        copy /y "%vsrt%.%%i.6" "%vsrt%.%%i.5" 1>nul 2>nul
 
                         rem Remove already duplicated files
                         findstr /i /v "!mdup!" "%vsrt%.%%i.5" > "%vsrt%.%%i.6"
-rem echo mdup=!mdup!
+if not "!vdeb!"=="" echo mdup=!mdup!
                         echo  Duplicating destination files... %clog%
                         if exist "%vsrt%.%%i.6" for /f %%a in (%vsrt%.%%i.6) do (
-rem echo dup=%%a
+if not "!vdeb!"=="" echo dup=%%a
                             copy %%a "!mdup!" /y 1>nul 2>nul
                         )
                     )
                 )
             )
-            
+
             rem Include the log file into the output stream
             if not "!mlog!"=="" (
                 set "vcmd=!mlog!"
@@ -780,13 +950,13 @@ set "mrun="
     del %lcpu%* /q 1>nul 2>nul
     del %lerr%* /q 1>nul 2>nul
     del %lvia%* /q 1>nul 2>nul
-    
+
     rem Deleting source files list, log files, command files, etc...
 rem    del %vdst% /s /f /q 1>nul 2>nul
 
-    rem Expand the relative path of the configuration file
+    rem Expand again the relative path of the configuration file
     set "vrel=%~dp2"
-    
+
     rem Tell user where is the log file
     echo. %clog%
     if not "%vlog%"=="nolog" if not "%vlog%"=="nul" echo Get the %vtxt% log into !vlog:%vrel%=.\! !
@@ -824,6 +994,26 @@ rem    del %vdst% /s /f /q 1>nul 2>nul
 
     rem Open log file in default application if "quick" build
     if "%1"=="quick" if not "%vlog%"=="nolog" start "" "%vlog%"
+goto :eof
+
+:readline
+    rem Read line from a file (include blank lines through 'findstr')
+if not "!vdeb!"=="" echo   read line - %1
+if not "!vdeb!"=="" echo   read file - %2
+    if %1 neq 0 (
+        set skipline=skip=%1
+    ) else (
+        set skipline=
+    )
+if not "!vdeb!"=="" echo     read skip 0 - %skipline%
+    for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n ".*" "%2"') do (
+if not "!vdeb!"=="" echo     read plin 1 - %%l
+if not "!vdeb!"=="" echo     read plin 2 - %%m
+        rem Read second token from 'findstr' ('linenum:string' : %%l:%%m)
+        set "plin=%%m"
+if not "!vdeb!"=="" echo     read plin 3 - !plin!
+        goto :eof
+    )
 goto :eof
 
 :waiterr
@@ -869,7 +1059,7 @@ goto :eof
         goto :waitcpu
     )
 goto :eof
-  
+
 :tohex
     rem Return the hexadecimal representation of a shifted bit
     set /a "dec=1<<%1"
@@ -887,6 +1077,11 @@ goto :eof
 :expandpath
     rem Poor-man's full-path variable expansion
     set "pexp=%~f1"
+goto :eof
+
+:expandsize
+    rem Poor-man's size variable expansion
+    set "pexp=%~z1"
 goto :eof
 
 :cleanpath
@@ -934,7 +1129,7 @@ goto :eof
 goto :eof
 
 rem Debug arrow to detect where problems are located
-rem Just move this arrow around the problem 
+rem Just move this arrow around the problem
 rem Surround the detected sections with the numbered lines
 
     echo Debug-------1 \
