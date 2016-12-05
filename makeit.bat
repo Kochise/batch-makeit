@@ -34,6 +34,7 @@ rem                  map      - perform mapping analysis
 rem Todo list (Oh No! More Lemmings)
 rem Correct error management through batch files for multi-core compilation
 rem Try to synchronize output execution result with target execution message
+rem Flush already accumulated arguments into via file when the VIA tag is met
 rem Add a LOG_CNF entry to give a default configuration file name (no ext file?)
 rem Convert to native, lua, shell, whatever less bogus and snappier execution time
 rem Praise the Lords...
@@ -82,7 +83,7 @@ if "%1"=="map" set "vtxt=mapping"
 rem Set command prefix sequence
 if "%1"=="all" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_ RUN_"
 if "%1"=="partial" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_"
-if "%1"=="rebuild" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ LOC_"
+if "%1"=="rebuild" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_"
 if "%1"=="quick" set "vpre=PRE_ CPP_ LNK_ PST_ FLH_ RUN_"
 if "%1"=="fast" set "vpre=PRE_ CPP_ LNK_ PST_ FLH_"
 if "%1"=="build" set "vpre=PRE_ CPP_ LNK_ PST_"
