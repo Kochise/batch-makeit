@@ -1,0 +1,33 @@
+LNK_EXE=${CROSS}gcc.exe
+LNK_REM=Add 'rdimon.specs' to avoid '__errno' linking problem
+LNK_URL=https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html
+LNK_CPU=1
+LNK_DST=${LOC_DST}
+LNK_CLI=LOC EXE ARG LIB LST
+LNK_EXT=o
+LNK_DBG=
+LNK_DEP=
+LNK_OBJ=o
+LNK_LNK=.*.o
+LNK_BIN=elf
+LNK_ARG=-mcpu=cortex-m4
+#LNK_ARG=-march=armv7e-m
+LNK_ARG=-mthumb
+LNK_ARG=-mfloat-abi=hard
+LNK_ARG=-mfpu=fpv4-sp-d16
+LNK_ARG=-mapcs-frame
+#LNK_ARG=-L"${LOC_SRC}/Lib" 
+#LNK_ARG=-L"${LOC_SRC}/Drivers/CMSIS/Lib/GCC" 
+LNK_ARG=-nodefaultlibs
+LNK_ARG=-nostartfiles
+LNK_ARG=-nostdlib
+#LNK_ARG=-specs=rdimon.specs
+#LNK_ARG=-specs=nosys.specs
+#LNK_ARG=-specs=nano.specs
+LNK_ARG=-T"${CD}../${PRJ_NAM}.ld"
+LNK_ARG=-Wl,-Map=${PRJ_NAM}.map
+#LNK_ARG=-lm
+#LNK_ARG=-lc
+#LNK_ARG=-lgcc
+#LNK_ARG=-v
+LNK_LIB=-o "${LOC_DST}\${PRJ_NAM}.elf"

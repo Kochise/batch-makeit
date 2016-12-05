@@ -1,0 +1,19 @@
+ASM_EXE=${CROSS}as.exe
+ASM_SRC=${LOC_SRC}
+ASM_DST=${LOC_DST}
+ASM_CLI=LOC EXE ARG EXT
+ASM_DBG=
+ASM_DEP=d
+ASM_OBJ=o
+ASM_LNK=$[NAME].o
+ASM_BIN=
+ASM_ARG=-mcpu=cortex-m4
+ASM_ARG=-mthumb
+ASM_ARG=-mfloat-abi=hard
+ASM_ARG=-mfpu=fpv4-sp-d16
+ASM_ARG=-mapcs-frame
+ASM_ARG=-c
+ASM_ARG=-g
+ASM_ARG=-x
+ASM_ARG=assembler-with-cpp
+ASM_ARG=-o "$[NAME].o"

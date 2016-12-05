@@ -1,0 +1,7 @@
+INCLUDE=path_keil.txt
+
+INCLUDE=assemble_keil.txt
+
+INCLUDE=compile_keil.txt
+
+INCLUDE=probe_keil.txt

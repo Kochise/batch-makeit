@@ -1,0 +1,32 @@
+LNK_EXE=armlink.exe
+LNK_CPU=1
+LNK_DST=${LOC_DST}\_
+LNK_CLI=LOC EXE ARG LIB LST
+LNK_EXT=o
+LNK_DBG=
+LNK_DEP=
+LNK_OBJ=o
+LNK_LNK=.*.o
+LNK_BIN=axf
+LNK_ARG=--cpu Cortex-M4
+LNK_ARG=--debug
+LNK_ARG=--keep=i_sections.*
+LNK_ARG=--scatter="${LOC_SRC}\$[CONF].sct"
+LNK_ARG=--entry Reset_Handler
+LNK_ARG=--list="$[LOC_DST]\$[CONF].map"
+LNK_ARG=--info=summarysizes
+LNK_ARG=--info=unused
+LNK_ARG=--info=sizes
+LNK_ARG=--info=stack
+LNK_ARG=--info=totals
+LNK_ARG=--info=veneers
+LNK_ARG=--xref
+LNK_ARG=--map
+LNK_ARG=--symbols
+LNK_ARG=--autoat
+LNK_ARG=--summary_stderr
+LNK_ARG=--callgraph
+LNK_ARG=--libpath="${LOC_BAT}\ARMCC\lib"
+LNK_ARG=--libpath="${LOC_BAT}\RV31\lib"
+LNK_ARG="${LOC_SRC}\BOOTLOADER\BOOT\toolbox\ect.lib"
+LNK_LIB=-o "$[LOC_DST]\$[CONF].axf"

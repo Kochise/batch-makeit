@@ -1,0 +1,5 @@
+INCLUDE=setup_ac6.txt
+
+INCLUDE=clean.txt
+
+INCLUDE=pre.txt

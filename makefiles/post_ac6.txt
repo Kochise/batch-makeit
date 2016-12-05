@@ -1,0 +1,7 @@
+PST_EXE=${CROSS}size.exe
+PST_REM=Display size of sections
+PST_CPU=1
+PST_DST=${LOC_DST}
+PST_CLI=LOC EXE ARG EXT
+PST_EXT=elf
+PST_ARG=--common

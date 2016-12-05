@@ -1,0 +1,21 @@
+FLH_EXE=${LOC_UV4}\UV4.exe
+FLH_CPU=1
+FLH_CLI=EXE ARG 
+FLH_EXT=axf
+FLH_CPY=${LOC_SRC}\BOOTLOADER\makefiles\probe_ulink2.ini
+FLH_CPY=${LOC_SRC}\BOOTLOADER\makefiles\probe_ulink2.uvopt
+FLH_CPY=${LOC_SRC}\BOOTLOADER\makefiles\probe_ulink2.uvproj
+FLH_ARG=-f "$[LOC_DST]\probe_ulink2.uvproj"
+FLH_ARG=-o "$[LOC_DST]\probe_ulink2.flash.log"
+FLH_LOG=$[LOC_DST]\probe_ulink2.flash.log
+
+RUN_EXE=${LOC_UV4}\UV4.exe
+RUN_CPU=1
+RUN_CLI=EXE ARG
+RUN_EXT=axf
+RUN_CPY=${LOC_SRC}\BOOTLOADER\makefiles\probe_ulink2.ini
+RUN_CPY=${LOC_SRC}\BOOTLOADER\makefiles\probe_ulink2.uvopt
+RUN_CPY=${LOC_SRC}\BOOTLOADER\makefiles\probe_ulink2.uvproj
+RUN_ARG=-d "$[LOC_DST]\probe_ulink2.uvproj"
+RUN_ARG=-o "$[LOC_DST]\probe_ulink2.run.log"
+RUN_LOG=$[LOC_DST]\probe_ulink2.printf.log

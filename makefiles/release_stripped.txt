@@ -1,0 +1,38 @@
+// Release configuration, setup.txt determines the compiler suite
+
+INCLUDE=setup.txt
+
+INCLUDE=project_name.txt
+
+// Clean in setup.txt
+
+// Assemble step in setup.txt
+ASM_ARG=-c
+ASM_ARG=-g
+ASM_ARG=-x
+ASM_ARG=assembler-with-cpp
+
+// Pre-processing step in setup.txt
+
+// Compile step in setup.txt
+CPP_REM=AXF/HEX creation (normal size optimized software)
+CPP_DEF=_RELEASE
+CPP_DEF=NDEBUG
+CPP_TMP=-g3
+CPP_TMP=-O1
+CPP_EXC=\main.c
+CPP_EXC=\Drivers\
+CPP_TMP=-fno-strict-aliasing
+CPP_TMP=-fomit-frame-pointer
+LNK_ARG=-Wl,--gc-sections
+
+// Link stage in setup.txt
+
+// Post-processing step in setup.txt
+PST_ARG=--format=berkeley
+
+// Flash step in probe.txt
+
+// Run step in probe.txt
+
+// Map step in setup.txt

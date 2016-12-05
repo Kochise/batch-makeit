@@ -1,0 +1,17 @@
+ASM_EXE=armasm.exe
+ASM_SRC=${LOC_SRC}
+ASM_DST=${LOC_DST}\_
+ASM_CLI=LOC EXE ARG EXT
+ASM_EXT=s
+ASM_DBG=
+ASM_DEP=d
+ASM_OBJ=o
+ASM_LNK=$[NAME].o
+ASM_BIN=
+ASM_ARG=--cpu Cortex-M4
+ASM_ARG=--pd "__EVAL SETA 1"
+ASM_ARG=--list=$[CONF].lst
+ASM_ARG=--xref
+ASM_ARG=-g
+ASM_ARG=--depend "$[NAME].d"
+ASM_ARG=-o "$[NAME].o"

@@ -1,0 +1,5 @@
+PRE_EXE=${CD}..\set_build_time.bat
+PRE_REM=Creating version/date/time build header file
+PRE_CPU=1
+PRE_SRC=${LOC_SRC}
+PRE_CLI=EXE

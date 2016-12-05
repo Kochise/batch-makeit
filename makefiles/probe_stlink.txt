@@ -1,0 +1,19 @@
+FLH_EXE=${LOC_STM}\ST-LINK_CLI.exe
+FLH_URL=www.st.com/resource/en/user_manual/cd00262073.pdf, chapter 4
+FLH_CPU=1
+FLH_CLI=EXE ARG
+FLH_DST=${LOC_DST}
+FLH_EXT=elf
+FLH_ARG=-c SWD
+FLH_ARG=-p "$[NAME].elf"
+FLH_ARG=-Rst
+
+RUN_EXE=${LOC_STM}\ST-LINK_CLI.exe
+RUN_URL=www.st.com/resource/en/user_manual/cd00262073.pdf, chapter 4
+RUN_CPU=1
+RUN_CLI=EXE ARG
+RUN_DST=${LOC_DST}
+RUN_EXT=elf
+RUN_ARG=-c SWD
+RUN_ARG=-Rst
+RUN_ARG=-Run

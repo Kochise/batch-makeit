@@ -1,0 +1,5 @@
+LOC_BAT=C:\Keil_472a\ARM
+LOC_UV4=C:\Keil_472a\UV4
+LOC_EXE=${LOC_BAT}\ARMCC\bin
+INCLUDE=path_source.txt
+LOC_DST=.\..\..\..\BUILD\Keil

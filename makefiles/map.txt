@@ -1,0 +1,5 @@
+MAP_EXE=amap.exe
+MAP_CPU=1
+MAP_DST=${LOC_DST}
+MAP_CLI=EXE EXT
+MAP_EXT=map

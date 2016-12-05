@@ -1,0 +1,1 @@
+makeit clean release
