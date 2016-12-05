@@ -1,6 +1,6 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH 2013-2016
+rem Extended Batch Makefile by David KOCH v2.1 2013-2016
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument  %0     %1   %2           %3               %4
 rem                   |    |            |                |
@@ -33,7 +33,9 @@ rem                  map      - perform mapping analysis
 
 rem Todo list (Oh No! More Lemmings)
 rem Correct error management through batch files for multi-core compilation
+rem Try to synchronize output execution result with target execution message
 rem Add a LOG_CNF entry to give a default configuration file name (no ext file?)
+rem Convert to native, lua, shell, whatever less bogus and snappier execution time
 rem Praise the Lords...
 
 rem Notes for maintenance
@@ -141,6 +143,7 @@ set "lerr=%vdst%\%2.lock.err"
 set "lvia=%vdst%\%2.lock.via"
 
 rem Create the error logger batch
+rem FIXME: currently batch file error loggers unused (not enough parameters)
 for /l %%c in (%cmin%,1,%cmax%) do (
     echo ^@echo off>> "%lbat%.%%c.bat"
 rem    echo echo %%~1 %%~2 %%~3 %%~4 %%~5 %%~6 %%~7 %%~8 %%~9>> "%lbat%.%%c.bat"
@@ -892,6 +895,7 @@ if not "!vdeb!"=="" echo       Process file...
                         rem Direct execution
                         start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
                         rem Remote batch execution to catch errorlevel exit code
+rem FIXME: currently batch file error loggers unused (not enough parameters)
                         rem If the !vcmd! argument chain gets exploded and unresolved, use the via option
 rem                        start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 "%lbat%.!cnxt!" "!vexe!" "!vcmd!"
                     )
