@@ -16,6 +16,43 @@ And with each additional language, additional installations, size cost, dependen
 The very first incarnation of the Makeit engine took place as a little batch file used to compile an Erlang port of the Minilight monte-carlo based raytracer :
 
 \- - - 8< - - - -<br>
+@echo off<br>
+<br>
+if "%1"=="test" goto test<br>
+<br>
+set esrc=.\\src<br>
+goto compile<br>
+<br>
+:test<br>
+set esrc=.\\test<br>
+<br>
+:compile<br>
+set ebin=.\\ebin<br>
+set erlinc=.\\include<br>
+set erlp=C:\\Erlang\\bin<br>
+set erlc=erlc<br>
+set erl_flags=-I%erlinc%<br>
+set erlsrc=*.erl<br>
+set erldst=*.beam<br>
+<br>
+del Make_E.lst /Q<br>
+del Make_E.log /Q<br>
+<br>
+dir /B /A:-D /ON %esrc%\\%erlsrc% > Make_E.lst<br>
+<br>
+for /F %%i in (Make_E.lst) do (<br>
+echo Compiling %esrc%\%%i<br>
+echo === %esrc%\%%i ====================================== >> Make_E.log<br>
+"%erlp%\\%erlc%" -W -bbeam %erl_flags% -o%ebin% "%esrc%\\%%i" >> Make_E.log<br>
+echo. >> Make_E.log<br>
+)<br>
+<br>
+del Make_E.lst<br>
+<br>
+echo.<br>
+echo Get the compile log into '.\\Make_E.log' !<br>
+<br>
+@echo on<br>
 \- - - 8< - - - -<br>
 
 * Conception
