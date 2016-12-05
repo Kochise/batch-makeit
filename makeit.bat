@@ -527,6 +527,8 @@ rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
 				echo --!mrem! %clog%
 			)
 		)
+		
+		rem /!\ Do *NOT* link these two 'not "!mexe!"==""' sections -> BUG
 
         if not "!mexe!"=="" if "!msrc!"=="" (
             echo  ERROR : No source path for "%%i" ! %clog%
@@ -538,15 +540,23 @@ rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
             ) else (
                 rem Yeah, because if the path doesn't exist, file creation fails
                 if not "!mdst!"=="" (
-                    echo  Creating destination folder tree... %clog%
-if not "!vdeb!"=="" echo msrc=!msrc!
-if not "!vdeb!"=="" echo mdst=!mdst!
-                    mkdir "!mdst!" 2>nul
-                    if not "!msrc!"=="!mdst!" (
-                        rem Copy empty folder tree
-                        xcopy "!msrc!" "!mdst!" /q /t /e /y 2>nul
-                        rem Remove the 'makefiles' directory (specific)
-rem                        rmdir "!mdst!\makefiles" /s /q 1>nul 2>nul
+                    rem If not same destination directory as previous step
+                    if not "!mdst!"=="!mold!" (
+                        echo  Creating destination folder tree... %clog%
+if not "!vdeb!"==""     echo msrc=!msrc!
+if not "!vdeb!"==""     echo mdst=!mdst!
+                        
+                        rem Create root destionation directory
+                        mkdir "!mdst!" 2>nul
+                        set "mold=!mdst!"
+                        
+                        rem If not self directory
+                        if not "!msrc!"=="!mdst!" (
+                            rem Copy empty folder tree
+                            xcopy "!msrc!" "!mdst!" /q /t /e /y 2>nul
+                            rem Remove the 'makefiles' directory (specific)
+rem                         rmdir "!mdst!\makefiles" /s /q 1>nul 2>nul
+                        )
                     )
 
                     rem Delete the files from destination folder
