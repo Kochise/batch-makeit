@@ -1,4 +1,4 @@
-# makeit
+# Makeit
 Embeddable make engine for DOS and Windows
 
 * Introduction
@@ -48,25 +48,7 @@ Then the make engine loop each step to generate the command line, call the execu
 
 A configuration file is a text file that will set your workspace build configuration. It is mostly like an '.ini' file in the sense that there are sections and parameters. But instead to have [...] sections and child parameters, you have a 'STEP_PARAM=' format that allows a same '_PARAM' be defined multiple times.
 
-\- Here is the list of resolvable keys :
-
-${...} = resolved at Makeit start, when the configuration file is parsed, must only be relative paths<br>
-$[...] = resolved at each step execution, the complete list is below :<br>
-
-$[CONF] = the configuration parameter, like 'debug' or 'release'<br>
-$[THIS] = the complete path and file name of the source file processed<br>
-$[PATH] = the path of the source file processed<br>
-$[NAME] = the name of the source file processed<br>
-$[EXT] = the extension of the source file processed ('.c' vs '.cpp')<br>
-$[FILE] = the file name and extension of the source file processed<br>
-$[ATTR] = the attribute string of the source file processed (DOS format)<br>
-$[TIME] = the modification time of the source file processed (DOS format)<br>
-$[SIZE] = the size of the source file processed (DOS format)<br>
-$[LOC_SRC] = the resolved source path<br>
-$[LOC_DST] = the resolved destination path with configuration sub folder<br>
-$[LIST] = the list of link files during the 'LNK_' step<br>
-
-\- The list of the common steps defined inside the Makeit engine is :
+\- The list of the common step prefixes tags defined inside the Makeit engine is :
 
 CLN_ = clean<br>
 ASM_ = assemble<br>
@@ -78,27 +60,9 @@ FLH_ = flash (flash the binary file inside the embedded target)<br>
 RUN_ = run (launch the debugger)<br>
 MAP_ = map analysis (after LNK_)<br>
 
-\- The list of the common sequences prefixes defined inside the Makeit engine is :
+Please bear in mind that you can create your own. Keep it short (3 capital letters is good) and add an underscore at the end.
 
-all		= CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_ RUN_ (clean to run)<br>
-partial	= CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_ (flash the embedded device but don't run it)<br>
-rebuild	= CLN_ ASM_ PRE_ CPP_ LNK_ PST_ (the classic rebuild command)<br>
-quick	= PRE_ CPP_ LNK_ PST_ FLH_ RUN_ (build, flash and run)<br>
-fast	= PRE_ CPP_ LNK_ PST_ FLH_ (build and flash)<br>
-build	= PRE_ CPP_ LNK_ PST_ (build)<br>
-clean	= CLN_<br>
-assemble = ASM_<br>
-compile	= PRE_ CPP_<br>
-link	= LNK_ PST_<br>
-flash	= FLH_<br>
-run		= RUN_<br>
-map		= MAP_<br>
-
-Don't forget that additional custom steps and sequences can be added directly in the configuration file in the following format (beware of the spurious space characters between steps) :
-
-\<sequence>=\<step1> \<step2> \<...> \<stepn><br>
-
-\- The list of the current suffixes tags is :
+\- The list of the current step suffixes tags is :
 
 REM = remark, print (the last declared) before running the step<br>
 LOC = files' location (BAT, EXE, SRC and DST)<br>
@@ -126,13 +90,57 @@ INC = include paths prefixed with '-I'<br>
 LIB = optional free parameter, can be used in the CLI parameter<br>
 TMP = optional free parameter, can be used in the CLI parameter<br>
 
+This list cannot be extended because it is wired in the core of the Makeit engine and there is a behavior linked to each of them.
+
+\- The list of the common sequences defined inside the Makeit engine is :
+
+all		= CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_ RUN_ (clean to run)<br>
+partial	= CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_ (flash the embedded device but don't run it)<br>
+rebuild	= CLN_ ASM_ PRE_ CPP_ LNK_ PST_ (the classic rebuild command)<br>
+quick	= PRE_ CPP_ LNK_ PST_ FLH_ RUN_ (build, flash and run)<br>
+fast	= PRE_ CPP_ LNK_ PST_ FLH_ (build and flash)<br>
+build	= PRE_ CPP_ LNK_ PST_ (build)<br>
+clean	= CLN_<br>
+assemble = ASM_<br>
+compile	= PRE_ CPP_<br>
+link	= LNK_ PST_<br>
+flash	= FLH_<br>
+run		= RUN_<br>
+map		= MAP_<br>
+
+Don't forget that additional custom steps and sequences can be added directly in the configuration file in the following format (beware of the spurious space characters between steps) :
+
+\<sequence>=\<step1> \<step2> \<...> \<stepn><br>
+
+Something like :
+
+custom=FIT_ ASM_ MAP_ LNK_
+
+\- Here is the list of resolvable keys :
+
+${...} = static, resolved at Makeit start, when the configuration file is parsed, must only be relative paths<br>
+$[...] = dynamic, resolved at each step execution, the complete list is below :<br>
+
+$[CONF] = the configuration parameter, like 'debug' or 'release'<br>
+$[THIS] = the complete path and file name of the source file processed<br>
+$[PATH] = the path of the source file processed<br>
+$[NAME] = the name of the source file processed<br>
+$[EXT] = the extension of the source file processed ('.c' vs '.cpp')<br>
+$[FILE] = the file name and extension of the source file processed<br>
+$[ATTR] = the attribute string of the source file processed (DOS format)<br>
+$[TIME] = the modification time of the source file processed (DOS format)<br>
+$[SIZE] = the size of the source file processed (DOS format)<br>
+$[LOC_SRC] = the resolved source path<br>
+$[LOC_DST] = the resolved destination path with configuration sub folder<br>
+$[LIST] = the list of link files during the 'LNK_' step<br>
+
 Before explaining the engine's depths, let's show and explain a simple configuration script :
 
 \- - - 8< - - - -<br>
-LOC_BAT=C:\GNU<br>
+LOC_BAT=C:\\GNU<br>
 LOC_EXE=${LOC_BAT}\bin<br>
-LOC_SRC=.\..\..\..\SOURCE<br>
-LOC_DST=.\..\..\..\BUILD\EXE<br>
+LOC_SRC=.\\..\\..\\..\\SOURCE<br>
+LOC_DST=.\\..\\..\\..\\BUILD\EXE<br>
 <br>
 INCLUDE=probe.txt<br>
 <br>
@@ -166,7 +174,7 @@ CPP_DST=${LOC_DST}<br>
 CPP_CLI=LOC EXE DEF ARG INC EXT<br>
 CPP_EXT=cpp<br>
 CPP_EXT=c<br>
-CPP_EXC=\tests\<br>
+CPP_EXC=\\tests\\<br>
 CPP_DEP=d<br>
 CPP_OBJ=o<br>
 CPP_LNK=$[NAME].o<br>
@@ -181,19 +189,19 @@ LNK_EXE=ld.exe<br>
 LNK_CPU=1<br>
 LNK_DST=${LOC_DST}<br>
 LNK_CLI=LOC EXE ARG LIB LST TMP<br>
-LNK_TMP=${LOC_DST}\$[CONF]<br>
+LNK_TMP=${LOC_DST}\\$[CONF]<br>
 LNK_EXT=o<br>
 LNK_OBJ=o<br>
 LNK_LNK=.*.o<br>
 LNK_BIN=exe<br>
 LNK_ARG=--mcpu=x86<br>
-LNK_ARG=--log "$[LOC_DST]\$[CONF].link.log"<br>
-LNK_LOG=$[LOC_DST]\$[CONF].link.log<br>
-LNK_LIB=-o "$[LOC_DST]\$[CONF].exe"<br>
+LNK_ARG=--log "$[LOC_DST]\\$[CONF].link.log"<br>
+LNK_LOG=$[LOC_DST]\\$[CONF].link.log<br>
+LNK_LIB=-o "$[LOC_DST]\\$[CONF].exe"<br>
 <br>
 TST_EXE=test.exe<br>
 TST_CPU=1<br>
-TST_SRC=${LOC_DST}\Test<br>
+TST_SRC=${LOC_DST}\\Test<br>
 TST_CLI=EXE<br>
 TST_EXT=tst<br>
 \- - - 8< - - - -<br>
@@ -216,7 +224,7 @@ Each time an executable is run, its output is redirected inside a text file that
 
 * Architecture
 
-Here is a basic overview of the batch file with each core part located and explained further down :
+At first I wanted to use a INI file and its hierarchical structure. However parsing such a file using just a batch file revealed to be a bit too complex and mostly prevented forward file inclusions of steps. So I got back to something more KISS like. Here is a basic overview of the batch file with each core part located and explained further down :
 
 
 
@@ -278,9 +286,9 @@ For little projects you may want to avoid adding a load of include paths to prev
 Here is what it might look like :
 
 \- - - 8< - - - -<br>
-ASM_DST=${LOC_DST}\_<br>
-CPP_DST=${LOC_DST}\_<br>
-LNK_DST=${LOC_DST}\_<br>
+ASM_DST=${LOC_DST}\\_<br>
+CPP_DST=${LOC_DST}\\_<br>
+LNK_DST=${LOC_DST}\\_<br>
 <br>
 PRE_EXE=copy<br>
 PRE_CPU=1<br>
@@ -289,10 +297,10 @@ PRE_DST=${LOC_DST}<br>
 PRE_CLI=EXE EXT ARG<br>
 PRE_XPY=h<br>
 PRE_OBJ=h<br>
-PRE_DUP=${LOC_DST}\_<br>
-PRE_ARG="$[LOC_DST]\$[FILE]"<br>
+PRE_DUP=${LOC_DST}\\_<br>
+PRE_ARG="$[LOC_DST]\\$[FILE]"<br>
 <br>
-CPP_INC=${LOC_DST}\_<br>
+CPP_INC=${LOC_DST}\\_<br>
 \- - - 8< - - - -<br>
 
 Hence you will only have one '_' folder to include, which reduce the size of the command line. Don't forget to specify this '_' folder as your new destination folder in all your build steps. By using the underscore character, it will always be located at first position and will also shorten the generated command line.
@@ -305,7 +313,7 @@ There is couple of really useful batch files to the Makeit engine. One that bulk
 @echo off<br>
 <br>
 rem Delete all previous build files<br>
-rmdir "..\BUILD" /s /q 1>nul 2>nul<br>
+rmdir "..\\BUILD" /s /q 1>nul 2>nul<br>
 \- - - 8< - - - -<br>
 
 \- - - delete_makeit_logs.bat - - -<br>
