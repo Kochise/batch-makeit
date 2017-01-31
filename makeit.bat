@@ -42,6 +42,7 @@ rem Praise the Lords...
 rem Notes for maintenance
 rem If something breaks, check the variables used for the 8191 bytes limit bug
 rem Variable resolving is very fragile, stupid nasty delayed expansion stuff
+rem 'findstr' sucks ass as hell, /r is buggy, first string should start with \
 
 rem For correct string substitution, need delayed variable expansion
 rem Beware: you'll scratch your head several times with this shit
@@ -176,13 +177,13 @@ for /l %%h in (1,1,3) do (
     echo   Inclusion level %%h/3 %clog%
     if exist "%vslv%.0" (
         rem Find INCLUDE tags
-        findstr "INCLUDE=" "%vslv%.0" > "%vslv%.1"
+        findstr "^INCLUDE=" "%vslv%.0" > "%vslv%.1"
         rem If INCLUDE tag found (beware, 'findstr' creates 0 byte files if nothing found)
 rem        if exist "%vslv%.1" (
         call :expandsize "%vslv%.1"
         if not "!pexp!"=="0" (
             rem Add all the rest in a separate file
-            findstr /v "INCLUDE=" "%vslv%.0" > "%vslv%.2"
+            findstr /v "^INCLUDE=" "%vslv%.0" > "%vslv%.2"
 
             rem Save original file before recreation
             copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
@@ -221,7 +222,7 @@ rem        if exist "%vslv%.1" (
 )
 
 rem Solve destination path with current configuration
-findstr "LOC_DST=" "%vslv%.0" > "%vslv%.1"
+findstr "^LOC_DST=" "%vslv%.0" > "%vslv%.1"
 rem If LOC_DST tag found (beware, 'findstr' creates 0 byte files if nothing found)
 call :expandsize "%vslv%.1"
 if not "!pexp!"=="0" (
@@ -229,7 +230,7 @@ if not "!pexp!"=="0" (
     echo Adding config name to LOC_DST path... %clog%
 
     rem Get the other lines in a separate file
-    findstr /v "LOC_DST=" "%vslv%.0" > "%vslv%.2"
+    findstr /v "^LOC_DST=" "%vslv%.0" > "%vslv%.2"
 
     rem Save original file before recreation
     copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
@@ -262,7 +263,7 @@ if not "!pexp!"=="0" (
 )
 
 rem Find custom sequence name if defined (from command line parameter)
-for /f "tokens=2 delims==" %%i in ('findstr "%1=" %vslv%.0') do (
+for /f "tokens=2 delims==" %%i in ('findstr "^%1=" %vslv%.0') do (
     rem Get sequence tags
 	set "vpre=%%i"
 )
@@ -328,7 +329,7 @@ rem        if exist "%vslv%.1" (
                         set "vtmp=!vtmp:${CD}=%vrel%!"
 
                         rem Look for the resolved parameter
-                        for /f "tokens=2 delims==" %%l in ('findstr "%%k=" "%vslv%.3"') do (
+                        for /f "tokens=2 delims==" %%l in ('findstr "^%%k=" "%vslv%.3"') do (
                             rem Check if it can be solved as a path
                             set "vinc=%%~fl"
                             set "vinc=!vinc:%vrel%=!"
@@ -668,7 +669,7 @@ rem                    echo  > "%vsrt%.%%i.0" 2>nul
                 )
 
                 rem If linker and destination link files list present
-                if "%%i"=="LNK_" if not "!mlnk!"==""  if exist %vlnk%.0 (
+                if "%%i"=="LNK_" if not "!mlnk!"=="" if exist %vlnk%.0 (
 rem                   copy /y "%vlnk%.0" "%vsrt%.%%i.0" 1>nul 2>nul
                    findstr "!mlnk!" "%vlnk%.0" > "%vsrt%.%%i.0"
                 )
@@ -679,7 +680,7 @@ if not "!vdeb!"=="" echo   Listing and excluding...
                 set "vlst="
 if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
                 if exist %vsrt%.%%i.0 (
-                    rem The 'findstr' command is buggy, never exclude only /xxx/
+                    rem The 'findstr' command is buggy, it never excludes only /xxx/
                     if "!mexc!"=="" (
                         rem Keep all files
                         copy "%vsrt%.%%i.0" "%vsrt%.%%i.4" /y 1>nul 2>nul
