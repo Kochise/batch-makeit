@@ -464,7 +464,7 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
                 if "!mvia!"=="" (
                     if "%%j"=="ARG" set "marg=!marg! !vtmp!"
                     if "%%j"=="DEF" set "mdef=!mdef! -D!vtmp!"
-                    if "%%j"=="INC" set "minc=!minc! -I!vtmp!"
+                    if "%%j"=="INC" set "minc=!minc! -I^"!vtmp!^""
                     if "%%j"=="LIB" set "mlib=!mlib! !vtmp!"
                     if "%%j"=="TMP" set "mtmp=!mtmp! !vtmp!"
                 ) else (
@@ -532,7 +532,7 @@ rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
 				echo --!mrem! %clog%
 			)
 		)
-		
+
 		rem /!\ Do *NOT* link these two 'not "!mexe!"==""' sections -> BUG
 
         if not "!mexe!"=="" if "!msrc!"=="" (
@@ -550,11 +550,11 @@ rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
                         echo  Creating destination folder tree... %clog%
 if not "!vdeb!"==""     echo msrc=!msrc!
 if not "!vdeb!"==""     echo mdst=!mdst!
-                        
+
                         rem Create root destionation directory
                         mkdir "!mdst!" 2>nul
                         set "mold=!mdst!"
-                        
+
                         rem If not self directory
                         if not "!msrc!"=="!mdst!" (
                             rem Copy empty folder tree
@@ -695,14 +695,15 @@ if not "!vdeb!"=="" echo     Listing remaining files...
                     if exist %vsrt%.%%i.4 (
                         rem Apply external excludes
                         if not "%vexc%"=="" (
-rem                            for /f %%a in (%vexc%) do set "mexc=!mexc! %%a"
+rem                            for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
                             findstr /i /v /g:"%vexc%" "%vsrt%.%%i.4" > "%vsrt%.%%i.5"
                             copy "%vsrt%.%%i.5" "%vsrt%.%%i.4" /y 1>nul 2>nul
                             del "%vsrt%.%%i.5" /q 1>nul 2>nul
                         )
 
-                        for /f %%a in (%vsrt%.%%i.4) do (
+                        for /f "delims=!" %%a in (%vsrt%.%%i.4) do (
                             echo %%a>> "%vsrt%.%%i.1"
+							rem Beware of files with space in name
                             set "vlst=!vlst! %%a"
                             rem Resolve file list as being relative to source
                             call set "vlst=%%vlst:!msrc!=.%%"
@@ -734,7 +735,7 @@ if not "!vdeb!"=="" echo   File list finished...
 if not "!vdeb!"=="" echo   Executing command on each listed file...
 
                 rem Now execute the commands for each source files found
-                if exist %vsrt%.%%i.1 for /f %%a in (%vsrt%.%%i.1) do (
+                if exist %vsrt%.%%i.1 for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
                     rem Create the relative destination path from source path
                     set "vrel=%%~dpa"
 
@@ -891,6 +892,12 @@ if not "!vdeb!"=="" echo       Process file...
                         echo !vexe! !vcmd!>> "%vsrt%.%%i.3"
                         if not "!mvia!"=="" type "%lvia%.!cnxt!" >> "%vsrt%.%%i.3"
 
+						rem Remove bad formated argument
+						if "!vcmd!"=="^" =^"" (
+rem							echo vcmd="!vcmd!"
+rem							set "vcmd="
+						)
+
                         rem The 'affinity' parameter BITFIELD select the CPU
                         set /a "crun=!cnxt!-1"
                         call :tohex !crun!
@@ -936,7 +943,7 @@ rem                        sort "%vsrt%.%%i.6" > "%vsrt%.%%i.5"
                         findstr /i /v "!mdup!" "%vsrt%.%%i.5" > "%vsrt%.%%i.6"
 if not "!vdeb!"=="" echo mdup=!mdup!
                         echo  Duplicating destination files... %clog%
-                        if exist "%vsrt%.%%i.6" for /f %%a in (%vsrt%.%%i.6) do (
+                        if exist "%vsrt%.%%i.6" for /f "delims=!" %%a in (%vsrt%.%%i.6) do (
 if not "!vdeb!"=="" echo dup=%%a
                             copy %%a "!mdup!" /y 1>nul 2>nul
                         )
@@ -1035,7 +1042,7 @@ goto :eof
 :waiterr
     rem Check %errorlevel% exit codes, if any
     for %%l in ("%lerr%*") do (
-        for /f %%m in ("%%l") do (
+        for /f "delims=!" %%m in ("%%l") do (
             set "perr=%%~m"
             if "%perr%" gtr "%verr%" (
                 set "verr=%perr%"
