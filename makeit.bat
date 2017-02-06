@@ -703,7 +703,7 @@ rem                            for /f "delims=!" %%a in (%vexc%) do set "mexc=!m
 
                         for /f "delims=!" %%a in (%vsrt%.%%i.4) do (
                             echo %%a>> "%vsrt%.%%i.1"
-							rem Beware of files with space in name
+                            rem Beware of files with space in name
                             set "vlst=!vlst! %%a"
                             rem Resolve file list as being relative to source
                             call set "vlst=%%vlst:!msrc!=.%%"
@@ -892,11 +892,11 @@ if not "!vdeb!"=="" echo       Process file...
                         echo !vexe! !vcmd!>> "%vsrt%.%%i.3"
                         if not "!mvia!"=="" type "%lvia%.!cnxt!" >> "%vsrt%.%%i.3"
 
-						rem Remove bad formated argument
-						if "!vcmd!"=="^" =^"" (
-rem							echo vcmd="!vcmd!"
-rem							set "vcmd="
-						)
+                        rem Remove bad formated argument
+                        if "!vcmd!"=="^" =^"" (
+rem                            echo vcmd="!vcmd!"
+rem                            set "vcmd="
+                        )
 
                         rem The 'affinity' parameter BITFIELD select the CPU
                         set /a "crun=!cnxt!-1"
