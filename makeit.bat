@@ -97,7 +97,7 @@ if "%1"=="run" set "vpre=RUN_"
 if "%1"=="map" set "vpre=MAP_"
 
 rem Set argument list (currently supported suffixes)
-set "varg=REM EXE SRC DST CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC DEL XPY CPY ARG DEF INC LIB TMP"
+set "varg=REM EXE SRC DST RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC DEL XPY CPY ARG DEF INC LIB TMP"
 
 rem Set default variables
 set "verr=0"
@@ -265,7 +265,7 @@ if not "!pexp!"=="0" (
 rem Find custom sequence name if defined (from command line parameter)
 for /f "tokens=2 delims==" %%i in ('findstr "^%1=" %vslv%.0') do (
     rem Get sequence tags
-	set "vpre=%%i"
+    set "vpre=%%i"
 )
 
 rem Remove location tag
@@ -378,6 +378,7 @@ for %%i in (%vpre%) do (
         set "mexe="
         set "msrc="
         set "mdst="
+        set "mrpt="
 
         set /a "mcpu=0"
 
@@ -403,7 +404,7 @@ for %%i in (%vpre%) do (
         set "mlib="
         set "mtmp="
 
-        rem Each argument suffix
+        rem Each argument suffix (don't forget to update the 'varg' list above)
         for %%j in (%varg%) do (
             rem Each parameter line
             if exist %vsrt%.0 for /f "delims=!" %%k in ('findstr "^%%i%%j=" "%vsrt%.0"') do (
@@ -440,6 +441,7 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
                 if "%%j"=="EXE" set "mexe=!vtmp!"
                 if "%%j"=="SRC" set "msrc=!vtmp!"
                 if "%%j"=="DST" set "mdst=!vtmp!"
+                if "%%j"=="RPT" set "mrpt=!vtmp!"
 
                 if "%%j"=="CPU" set "mcpu=!vtmp!"
 
@@ -470,7 +472,7 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
                 ) else (
                     if "%%j"=="ARG" echo !vtmp!>> "%vsrt%.%%i.arg"
                     if "%%j"=="DEF" echo -D!vtmp!>> "%vsrt%.%%i.def"
-                    if "%%j"=="INC" echo -I!vtmp!>> "%vsrt%.%%i.inc"
+                    if "%%j"=="INC" echo -I^"!vtmp!^"">> "%vsrt%.%%i.inc"
                     if "%%j"=="LIB" echo !vtmp!>> "%vsrt%.%%i.lib"
                     if "%%j"=="TMP" echo !vtmp!>> "%vsrt%.%%i.tmp"
                 )
@@ -494,6 +496,7 @@ rem            set "mexc=!mexc:\=/!"
         call :cleanpath "!mexe!" && set "mexe=!pcln!"
         call :cleanpath "!msrc!" && set "msrc=!pcln!"
         call :cleanpath "!mdst!" && set "mdst=!pcln!"
+        call :cleanpath "!mrpt!" && set "mrpt=!pcln!"
         call :cleanpath "!mdup!" && set "mdup=!pcln!"
 
         rem Correct the CPU max
@@ -527,21 +530,22 @@ rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
             if "%%i"=="COB_" echo Now converting in cobertura format... %clog%
             if "%%i"=="COP_" echo Now cleaning coverage... %clog%
 
-			rem Command remark to print
-			if not "!mrem!"=="" (
-				echo --!mrem! %clog%
-			)
-		)
+            rem Command remark to print
+            if not "!mrem!"=="" (
+                echo --!mrem! %clog%
+            )
+        )
 
-		rem /!\ Do *NOT* link these two 'not "!mexe!"==""' sections -> BUG
+        rem /!\ Do *NOT* link these two 'not "!mexe!"==""' sections -> BUG
 
         if not "!mexe!"=="" if "!msrc!"=="" (
             echo  ERROR : No source path for "%%i" ! %clog%
         ) else (
             rem Beware buddies, "LOC_" always *HAVE* to be the first tag in %vpre%
             if "%%i"=="LOC_" (
-                rem Fetch the path of binaries
+                rem Keep the build path of binaries and build report folder
                 set "mloc=!mexe!"
+                set "vrpt=!mrpt!"
             ) else (
                 rem Yeah, because if the path doesn't exist, file creation fails
                 if not "!mdst!"=="" (
@@ -956,6 +960,11 @@ if not "!vdeb!"=="" echo dup=%%a
                 set "vcmd=!mlog!"
                 call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "" && set "mlog=!pcmd!"
                 type "!mlog!" %clog%
+
+                rem Backup step log into step report folder
+                if not "!mrpt!"=="" (
+                    copy "!mlog!" "!mrpt!" /y 1>nul 2>nul
+                )
             )
 
             rem Echo only if something really happened
@@ -1016,7 +1025,14 @@ rem    del %vdst% /s /f /q 1>nul 2>nul
     echo ------------------------------------------------------------------------------- %clog%
 
     rem Open log file in default application if "quick" build
-    if "%1"=="quick" if not "%vlog%"=="nolog" start "" "%vlog%"
+    if not "%vlog%"=="" if not "%vlog%"=="nolog" (
+        rem Backup build log into build report folder
+        if not "!vrpt!"=="" (
+            copy "%vlog%" "!vrpt!" /y 1>nul 2>nul
+        )
+
+        if "%1"=="quick" start "" "%vlog%"
+    )
 goto :eof
 
 :readline
