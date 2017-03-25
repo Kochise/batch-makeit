@@ -1,4 +1,5 @@
 # Makeit
+
 Embeddable make engine for DOS and Windows
 
 * Introduction
@@ -157,6 +158,10 @@ custom=FIT_ ASM_ MAP_ LNK_
 \- Here is the list of resolvable keys :
 
 ${...} = static, resolved at Makeit start, when the configuration file is parsed, must only be relative paths<br>
+
+${CONF} = the configuration name ('conf' in 'makeit rebuild conf' command line)
+${CD} = the current directory from which makeit is launched
+
 $[...] = dynamic, resolved at each step execution, the complete list is below :<br>
 
 $[CONF] = the configuration parameter, like 'debug' or 'release'<br>
