@@ -1,6 +1,6 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH v2.1 2013-2016
+rem Extended Batch Makefile by David KOCH v2.3 2013-2017
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument  %0     %1   %2           %3               %4
 rem                   |    |            |                |
@@ -34,7 +34,6 @@ rem                  map      - perform mapping analysis
 rem Todo list (Oh No! More Lemmings)
 rem Correct error management through batch files for multi-core compilation
 rem Try to synchronize output execution result with target execution message
-rem Flush already accumulated arguments into via file when the VIA tag is met
 rem Add a LOG_CNF entry to give a default configuration file name (no ext file?)
 rem Convert to native, lua, shell, whatever less bogus and snappier execution time
 rem Praise the Lords...
@@ -43,6 +42,7 @@ rem Notes for maintenance
 rem If something breaks, check the variables used for the 8191 bytes limit bug
 rem Variable resolving is very fragile, stupid nasty delayed expansion stuff
 rem 'findstr' sucks ass as hell, /r is buggy, first string should start with \
+rem And these damn paths with a space into them, not easy to collate them
 
 rem For correct string substitution, need delayed variable expansion
 rem Beware: you'll scratch your head several times with this shit
@@ -258,7 +258,6 @@ if not "!pexp!"=="0" (
             rem Add configuration to the LOC_DST path
             echo %%j\%2>> "%vslv%.0"
         )
-
     )
 )
 
@@ -277,7 +276,7 @@ rem Process location tag first
 set "vpre=LOC_ %vpre%"
 
 rem Resolve ${...} variables with their corresponding parameter
-echo Resolving static ${path} and ${CONF}... %clog%
+echo Resolving static ${path}, ${CONF} and ${CD}... %clog%
 
 rem Multipass (c) Leeloo Dallas
 for /l %%h in (1,1,3) do (
@@ -288,7 +287,7 @@ for /l %%h in (1,1,3) do (
         rem Find unsolved argument to process
         findstr "${.*}" "%vslv%.0" > "%vslv%.1"
 
-       rem If unsolved argument found (beware, 'findstr' creates 0 byte files if nothing found)
+        rem If unsolved argument found (beware, 'findstr' creates 0 byte files if nothing found)
 rem        if exist "%vslv%.1" (
         call :expandsize "%vslv%.1"
         if not "!pexp!"=="0" (
@@ -305,7 +304,7 @@ rem        if exist "%vslv%.1" (
 
             rem Read original file (include blank lines through 'findstr')
             for /f "tokens=1,* delims=:" %%i in ('findstr /n ".*" "%vslv%.3"') do (
-                rem Read second token from 'findstr' ('linenum:string' : %%i:%%j)
+                rem Read second token from 'findstr' ('linenum:string' -> %%i:%%j)
                 if "%%j"=="!plin!" (
                     rem Inject old line
                     if "%%j"=="" (
@@ -446,7 +445,17 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
                 if "%%j"=="CPU" set "mcpu=!vtmp!"
 
                 if "%%j"=="CLI" set "mcli=!vtmp!"
-                if "%%j"=="VIA" set "mvia=!vtmp!"
+                if "%%j"=="VIA" (
+                    rem If VIA tag previously empty, flush arguments
+                    if "!mvia!"=="" if not "!vtmp!"=="" (
+                        echo !marg!> "%vsrt%.%%i.arg"
+                        echo !mdef!> "%vsrt%.%%i.def"
+                        echo !minc!> "%vsrt%.%%i.inc"
+                        echo !mlib!> "%vsrt%.%%i.lib"
+                        echo !mtmp!> "%vsrt%.%%i.tmp"
+                    )
+                    set "mvia=!vtmp!"
+                )
                 if "%%j"=="LOG" set "mlog=!vtmp!"
                 if "%%j"=="DBG" set "mdbg=!vtmp!"
                 if "%%j"=="DEP" set "mdep=!vtmp!"
@@ -508,9 +517,6 @@ rem            set "mexc=!mexc:\=/!"
             if !mcpu! gtr %cmax% set /a "mcpu=%cmax%"
         )
 
-        rem Correct the destination path (deprecated, moved before static resolution)
-rem        if not "!mdst!"=="" set "mdst=!mdst!\%2"
-
         rem If no source path, switch to destination path
         if "!msrc!"=="" if not "!mdst!"=="" set "msrc=!mdst!"
 
@@ -563,8 +569,6 @@ if not "!vdeb!"==""     echo mdst=!mdst!
                         if not "!msrc!"=="!mdst!" (
                             rem Copy empty folder tree
                             xcopy "!msrc!" "!mdst!" /q /t /e /y 2>nul
-                            rem Remove the 'makefiles' directory (specific)
-rem                         rmdir "!mdst!\makefiles" /s /q 1>nul 2>nul
                         )
                     )
 
@@ -572,7 +576,7 @@ rem                         rmdir "!mdst!\makefiles" /s /q 1>nul 2>nul
                     for /l %%l in (1,1,1) do if "!mdel:~0,1!"==" " set "mdel=!mdel:~1!"
                     if not "!mdel!"=="" (
 if not "!vdeb!"=="" echo mdel=!mdel!
-                        echo  Deleting destination files... %clog%
+                        echo  Deleting old destination files... %clog%
                         for %%j in (!mdel!) do (
 if not "!vdeb!"=="" echo del=!mdst!\*.%%j
                             del /s /q !mdst!\*.%%j 1>nul 2>nul
@@ -668,7 +672,7 @@ if not "!vdeb!"=="" echo arg-vtmp=%%j-!vtmp!
 if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
                     dir "!msrc!\*.%%a" %vdir% >> "%vsrt%.%%i.0" 2>nul
                 ) else (
-                    rem If no extension, execute at least once
+                    rem If no extension, execute at least once (ie. simple batch execution)
 rem                    echo  > "%vsrt%.%%i.0" 2>nul
                 )
 
@@ -707,7 +711,7 @@ rem                            for /f "delims=!" %%a in (%vexc%) do set "mexc=!m
 
                         for /f "delims=!" %%a in (%vsrt%.%%i.4) do (
                             echo %%a>> "%vsrt%.%%i.1"
-                            rem Beware of files with space in name
+                            rem FIXME Beware of files with space in name
                             set "vlst=!vlst! %%a"
                             rem Resolve file list as being relative to source
                             call set "vlst=%%vlst:!msrc!=.%%"
@@ -1125,7 +1129,8 @@ goto :eof
 
 :cleanpath
     set "pcln="
-    if not "%1"=="" if not "%1"=="""" (
+    if not "%~1"=="" (
+        rem Expand argument
         set "pcln=%~1"
         rem Change slashes
         set "pcln=!pcln:/=\!"
@@ -1164,6 +1169,8 @@ goto :eof
     set "pcmd=!pcmd:$[LOC_SRC]=%~3!"
     set "pcmd=!pcmd:$[LOC_DST]=%~4!"
     set "pcmd=!pcmd:$[LIST]=%~5!"
+    rem Remove double characters
+    set "pcmd=!pcmd:\\=\!"
     set "pcmd=!pcmd:""="!"
 goto :eof
 
