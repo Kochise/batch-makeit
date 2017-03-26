@@ -174,8 +174,10 @@ $[ATTR] = the attribute string of the source file processed (DOS format)<br>
 $[TIME] = the modification time of the source file processed (DOS format)<br>
 $[SIZE] = the size of the source file processed (DOS format)<br>
 $[LOC_SRC] = the resolved source path<br>
-$[LOC_DST] = the resolved destination path with configuration sub folder<br>
+$[LOC_DST] = the relative destination path with configuration sub folder<br>
 $[LIST] = the list of link files during the 'LNK_' step<br>
+
+Just note that the produced files location depend on the executable's strategy, more often in the executable's folder. To provide a destination path, you can use ${LOC_DST} that will be statically resolved at lauch, or $[LOC_DST] that will mimick the source folder tree, but with a relative path starting from the destination root folder.
 
 Before explaining the engine's depths, let's show and explain a simple configuration script :
 
