@@ -1,0 +1,13 @@
+LOC_EXE=.\ImageMagick
+LOC_SRC=.\_FROM
+LOC_DST=.\_DONE
+
+convert=PNG_
+
+PNG_EXE=magick.exe
+PNG_SRC=${LOC_SRC}
+PNG_DST=${LOC_DST}
+PNG_CLI=LOC EXE EXT ARG TMP
+PNG_EXT=tif
+PNG_ARG=-auto-level -brightness-contrast 10x10 -despeckle
+PNG_TMP="$[LOC_DST]\$[NAME].png"
