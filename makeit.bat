@@ -97,7 +97,7 @@ if "%1"=="run" set "vpre=RUN_"
 if "%1"=="map" set "vpre=MAP_"
 
 rem Set argument list (currently supported suffixes)
-set "varg=REM EXE SRC DST RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC DEL XPY CPY ARG DEF INC LIB TMP"
+set "varg=REM EXE SRC DST RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC BUT DEL XPY CPY ARG DEF INC LIB TMP"
 
 rem Set default variables
 set "verr=0"
@@ -393,6 +393,7 @@ for %%i in (%vpre%) do (
 
         set "mext="
         set "mexc="
+        set "mbut="
         set "mdel="
         set "mxpy="
         set "mcpy="
@@ -467,6 +468,7 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
                 rem File operation specific arguments (accumulated)
                 if "%%j"=="EXT" set "mext=!mext! !vtmp!"
                 if "%%j"=="EXC" set "mexc=!mexc! !vtmp!"
+                if "%%j"=="BUT" set "mbut=!mbut! !vtmp!"
                 if "%%j"=="DEL" set "mdel=!mdel! !vtmp!"
                 if "%%j"=="XPY" set "mxpy=!mxpy! !vtmp!"
                 if "%%j"=="CPY" set "mcpy=!mcpy! !vtmp!"
@@ -496,9 +498,22 @@ rem            for /l %%l in (1,1,5) do set "mexc=!mexc:\\=\!"
             rem Transform everything into slash
 rem            set "mexc=!mexc:\=/!"
             rem Transform everything into backslash
-            set "mexc=!mexc:/=\!"
+rem            set "mexc=!mexc:/=\!"
             rem Double backslash for 'findstr'
             set "mexc=!mexc:\=\\!"
+        )
+
+        rem Adapt exclusion list
+        if not "!mbut!"=="" (
+            rem Remove double (back)slash before doubling them again
+rem            for /l %%l in (1,1,5) do set "mbut=!mbut://=/!"
+rem            for /l %%l in (1,1,5) do set "mbut=!mbut:\\=\!"
+            rem Transform everything into slash
+rem            set "mbut=!mbut:\=/!"
+            rem Transform everything into backslash
+rem            set "mbut=!mbut:/=\!"
+            rem Double backslash for 'findstr'
+            set "mbut=!mbut:\=\\!"
         )
 
         rem Remove the ending backslash of path
@@ -630,6 +645,7 @@ rem                        set "vexe=!vexe! "
                         rem File operation specific arguments
                         if "%%j"=="EXT" set "vtmp=!vtmp!"$[THIS]" "
                         if "%%j"=="EXC" set "vtmp=!vtmp!!mexc! "
+                        if "%%j"=="BUT" set "vtmp=!vtmp!!mbut! "
                         if "%%j"=="LST" set "vtmp=!vtmp!$[LIST] "
 
                         rem Via-method compatible arguments
@@ -650,6 +666,7 @@ rem                        set "vexe=!vexe! "
                         rem File operation specific arguments
                         if "%%j"=="EXT" echo "$[THIS]">> "%vsrt%.%%i.via"
                         if "%%j"=="EXC" echo !mexc!>> "%vsrt%.%%i.via"
+                        if "%%j"=="BUT" echo !mbut!>> "%vsrt%.%%i.via"
                         if "%%j"=="LST" echo $[LIST]>> "%vsrt%.%%i.via"
 
                         rem Via-method compatible arguments
@@ -673,7 +690,7 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
                     dir "!msrc!\*.%%a" %vdir% >> "%vsrt%.%%i.0" 2>nul
                 ) else (
                     rem If no extension, execute at least once (ie. simple batch execution)
-rem                    echo  > "%vsrt%.%%i.0" 2>nul
+                    echo.> "%vsrt%.%%i.0" 2>nul
                 )
 
                 rem If linker and destination link files list present
@@ -693,8 +710,24 @@ if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
                         rem Keep all files
                         copy "%vsrt%.%%i.0" "%vsrt%.%%i.4" /y 1>nul 2>nul
                     ) else (
-                        rem Remove excluded files (at least 'dummy /xxx/')
+                        rem Remove excluded files (bug: never '/xxx/', at least 'dummy /xxx/')
                         findstr /i /v "!mexc!" "%vsrt%.%%i.0" > "%vsrt%.%%i.4"
+                        if not "!mbut!"=="" (
+                            rem Add anti excluded files
+                            findstr /i "!mbut!" "%vsrt%.%%i.0" >> "%vsrt%.%%i.4"
+                            rem Sort remaining files
+                            sort "%vsrt%.%%i.4" > "%vsrt%.%%i.5"
+                            rem Remove duplicate lines
+                            if exist %vsrt%.%%i.5 (
+                                del "%vsrt%.%%i.4" /q 1>nul 2>nul
+                                for /f "delims=!" %%a in (%vsrt%.%%i.5) do (
+                                    if not "%vdup%"=="%%a" (
+                                        set "vdup=%%a"
+                                        echo %%a>> "%vsrt%.%%i.4"
+                                    )
+                                )
+                            )
+                        )
                     )
 
 if not "!vdeb!"=="" echo     Listing remaining files...
@@ -744,8 +777,14 @@ if not "!vdeb!"=="" echo   Executing command on each listed file...
 
                 rem Now execute the commands for each source files found
                 if exist %vsrt%.%%i.1 for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
+                    set "vrel=%%a"
+                    
+                    rem Remove trailing and leading spaces
+                    for /l %%l in (1,1,2) do if "!vrel:~-1!"==" " set "vrel=!vrel:~0,-1!"
+                    for /l %%l in (1,1,2) do if "!vrel:~0,1!"==" " set "vrel=!vrel:~1!"
+                
                     rem Create the relative destination path from source path
-                    set "vrel=%%~dpa"
+                    if not "!vrel!"=="" set "vrel=%%~dpa"
 
 if not "!vdeb!"=="" echo     vrel=!vrel!
 if not "!vdeb!"=="" echo     msrc=!msrc!
