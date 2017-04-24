@@ -150,7 +150,8 @@ for /l %%c in (%cmin%,1,%cmax%) do (
     echo ^@echo off>> "%lbat%.%%c.bat"
 rem    echo echo %%~1 %%~2 %%~3 %%~4 %%~5 %%~6 %%~7 %%~8 %%~9>> "%lbat%.%%c.bat"
     echo %%~1 %%~2 %%~3 %%~4 %%~5 %%~6 %%~7 %%~8 %%~9>> "%lbat%.%%c.bat"
-    echo if errorlevel 1 echo "%%errorlevel%%"^> %lerr%.%%c>> "%lbat%.%%c.bat"
+rem    echo %%*>> "%lbat%.%%c.bat"
+    echo if not errorlevel 0 echo "%%errorlevel%%"^> %lerr%.%%c>> "%lbat%.%%c.bat"
 )
 
 rem Print the header
@@ -576,14 +577,16 @@ rem            set "mbut=!mbut:/=\!"
 if not "!vdeb!"==""     echo msrc=!msrc!
 if not "!vdeb!"==""     echo mdst=!mdst!
 
-                        rem Create root destionation directory
+                        rem Create root destination directory
                         mkdir "!mdst!" 2>nul
                         set "mold=!mdst!"
 
                         rem If not self directory
                         if not "!msrc!"=="!mdst!" (
                             rem Copy empty folder tree
-                            xcopy "!msrc!" "!mdst!" /q /t /e /y 2>nul
+rem                            xcopy "!msrc!" "!mdst!" /e /t /y /q 1>nul 2>nul
+                            rem Xcopy can produce an 'insufficient memory' error
+                            robocopy "!msrc!" "!mdst!" /e /xf * 1>nul 2>nul
                         )
                     )
 
@@ -594,7 +597,7 @@ if not "!vdeb!"=="" echo mdel=!mdel!
                         echo  Deleting old destination files... %clog%
                         for %%j in (!mdel!) do (
 if not "!vdeb!"=="" echo del=!mdst!\*.%%j
-                            del /s /q !mdst!\*.%%j 1>nul 2>nul
+                            del /s /q "!mdst!\*.%%j" 1>nul 2>nul
                         )
                     )
 
@@ -605,7 +608,8 @@ if not "!vdeb!"=="" echo mxpy=!mxpy!
                         echo  Xcopying source files... %clog%
                         for %%j in (!mxpy!) do (
 if not "!vdeb!"=="" echo xcopy=!msrc!\*.%%j
-                            xcopy "!msrc!\*.%%j" "!mdst!" /s /y /i /q 1>nul 2>nul
+                            xcopy "!msrc!\*.%%j" "!mdst!" /s /i /y /q 1>nul 2>nul
+rem                            robocopy "!msrc!\*.%%j" "!mdst!" /s 1>nul 2>nul
                         )
                     )
 
@@ -617,7 +621,7 @@ if not "!vdeb!"=="" echo xcopy=!msrc!\*.%%j
                         call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "" && set "mcpy=!pcmd!"
 if not "!vdeb!"=="" echo mcpy=!mcpy!
                         for %%j in (!mcpy!) do (
-                            if exist %%j copy /y "%%j" "!mdst!" 1>nul 2>nul
+                            if exist "%%j" copy /y "%%j" "!mdst!" 1>nul 2>nul
                         )
                     )
                 )
@@ -695,7 +699,7 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
 
                 rem If linker and destination link files list present
                 if "%%i"=="LNK_" if not "!mlnk!"=="" if exist %vlnk%.0 (
-rem                   copy /y "%vlnk%.0" "%vsrt%.%%i.0" 1>nul 2>nul
+rem                   copy "%vlnk%.0" "%vsrt%.%%i.0" /y 1>nul 2>nul
                    findstr "!mlnk!" "%vlnk%.0" > "%vsrt%.%%i.0"
                 )
 
@@ -806,14 +810,15 @@ if not "!vdeb!"=="" echo     Checking if file is newer...
                         rem Try in destination folder first
                         set "vobj=!mdst!\!vrem!"
                         rem Try in relative folder next
-                        if not exist !vobj! set "vobj=!vrel!\!vrem!"
-                        if exist !vobj! (
-                            attrib +r !vobj!
+                        if not exist "!vobj!" set "vobj=!vrel!\!vrem!"
+                        if exist "!vobj!" (
+                            attrib +r "!vobj!"
                             Rem Copy on destination file only if more recent
-                            xcopy /y /d %%a !vobj! 1>nul 2>nul
+                            xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
+rem                            robocopy "%%a" "!vobj" /xo 1>nul 2>nul
                             rem If more recent, fails due to write protection
                             if not errorlevel 0 set "vchk=1"
-                            attrib -r !vobj!
+                            attrib -r "!vobj!"
                         ) else (
                             rem No object file found? Objection! Generate it...
                             set "vchk=1"
@@ -828,24 +833,25 @@ if not "!vdeb!"=="" echo     Checking file dependencies...
                     rem Check file dependencies (can be quite long, sadly)
                     set "vdep="
                     rem Has been currently disabled due to poor xcopy performance
-if not "!mdep!"=="TOTO" if exist !vobj! if not "!mdep!"=="" (
+if not "!mdep!"=="TOTO" if exist "!vobj!" if not "!mdep!"=="" (
                         rem Try in destination folder first
                         set "vdep=!mdst!\%%~na.!mdep!"
                         rem Try in relative folder next
-                        if not exist !vdep! set "vdep=!vrel!\%%~na.!mdep!"
-                        if exist !vdep! (
-                            attrib +r !vobj!
+                        if not exist "!vdep!" set "vdep=!vrel!\%%~na.!mdep!"
+                        if exist "!vdep!" (
+                            attrib +r "!vobj!"
                             for /f "delims=!" %%b in (!vdep!) do (
                                 rem Get the dependency line
                                 set "vtst=%%b"
                                 rem Parse dependency line to keep only the dependency file path
                                 call set "vtst=%%vtst:!vrem!: =%%"
                                 Rem Copy on destination file only if more recent
-                                xcopy /y /d !vtst! !vobj! 1>nul 2>nul
+                                xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
+rem                                robocopy "!vtst!" "!vobj!" /xo 1>nul 2>nul
                                 rem If more recent, fails due to write protection
                                 if not errorlevel 0 set "vchk=1"
                             )
-                            attrib -r !vobj!
+                            attrib -r "!vobj!"
                         ) else (
                             rem No dependency file? Well, misconfiguration maybe...
                             set "vchk=1"
