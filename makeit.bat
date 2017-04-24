@@ -42,6 +42,7 @@ rem Notes for maintenance
 rem If something breaks, check the variables used for the 8191 bytes limit bug
 rem Variable resolving is very fragile, stupid nasty delayed expansion stuff
 rem 'findstr' sucks ass as hell, /r is buggy, first string should start with \
+rem 'xcopy' is bug ridden, but so is 'robocopy', hence not much luck there
 rem And these damn paths with a space into them, not easy to collate them
 
 rem For correct string substitution, need delayed variable expansion
@@ -573,7 +574,7 @@ rem            set "mbut=!mbut:/=\!"
                 if not "!mdst!"=="" (
                     rem If not same destination directory as previous step
                     if not "!mdst!"=="!mold!" (
-                        echo  Creating destination folder tree... %clog%
+                        echo  Creating destination folder... %clog%
 if not "!vdeb!"==""     echo msrc=!msrc!
 if not "!vdeb!"==""     echo mdst=!mdst!
 
@@ -583,14 +584,14 @@ if not "!vdeb!"==""     echo mdst=!mdst!
 
                         rem If not self directory
                         if not "!msrc!"=="!mdst!" (
-                            rem Copy empty folder tree
+                            echo  Copying source folder tree... %clog%
 rem                            xcopy "!msrc!" "!mdst!" /e /t /y /q 1>nul 2>nul
                             rem Xcopy can produce an 'insufficient memory' error
                             robocopy "!msrc!" "!mdst!" /e /xf * 1>nul 2>nul
                         )
                     )
 
-                    rem Delete the files from destination folder
+                    rem Delete specific files from destination folder
                     for /l %%l in (1,1,1) do if "!mdel:~0,1!"==" " set "mdel=!mdel:~1!"
                     if not "!mdel!"=="" (
 if not "!vdeb!"=="" echo mdel=!mdel!
@@ -601,7 +602,7 @@ if not "!vdeb!"=="" echo del=!mdst!\*.%%j
                         )
                     )
 
-                    rem Xcopy the files into destination folder
+                    rem Xcopy specific files into destination folder
                     for /l %%l in (1,1,1) do if "!mxpy:~0,1!"==" " set "mxpy=!mxpy:~1!"
                     if not "!mxpy!"=="" (
 if not "!vdeb!"=="" echo mxpy=!mxpy!
@@ -780,7 +781,7 @@ if not "!vdeb!"=="" echo   File list finished...
 if not "!vdeb!"=="" echo   Executing command on each listed file...
 
                 rem Now execute the commands for each source files found
-                if exist %vsrt%.%%i.1 for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
+                if exist "%vsrt%.%%i.1" for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
                     set "vrel=%%a"
                     
                     rem Remove trailing and leading spaces
@@ -814,8 +815,8 @@ if not "!vdeb!"=="" echo     Checking if file is newer...
                         if exist "!vobj!" (
                             attrib +r "!vobj!"
                             Rem Copy on destination file only if more recent
-                            xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
-rem                            robocopy "%%a" "!vobj" /xo 1>nul 2>nul
+rem                            xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
+                            robocopy "%%a" "!vobj" /xo 1>nul 2>nul
                             rem If more recent, fails due to write protection
                             if not errorlevel 0 set "vchk=1"
                             attrib -r "!vobj!"
@@ -846,8 +847,8 @@ if not "!mdep!"=="TOTO" if exist "!vobj!" if not "!mdep!"=="" (
                                 rem Parse dependency line to keep only the dependency file path
                                 call set "vtst=%%vtst:!vrem!: =%%"
                                 Rem Copy on destination file only if more recent
-                                xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
-rem                                robocopy "!vtst!" "!vobj!" /xo 1>nul 2>nul
+rem                                xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
+                                robocopy "!vtst!" "!vobj!" /xo 1>nul 2>nul
                                 rem If more recent, fails due to write protection
                                 if not errorlevel 0 set "vchk=1"
                             )
@@ -867,7 +868,7 @@ rem                                robocopy "!vtst!" "!vobj!" /xo 1>nul 2>nul
                         ) else (
                             call :waitcpu
                         )
-                        del %lcpu%.!cnxt! /q 1>nul 2>nul
+                        del "%lcpu%.!cnxt!" /q 1>nul 2>nul
 
 if not "!vdeb!"=="" echo       Adapt destination file...
 
@@ -898,10 +899,10 @@ if not "!vdeb!"=="" echo       Create argument list...
                             set "vcmd=!pcmd!"
                         ) else (
                             rem Del the via file
-                            del %lvia%.!cnxt! /q 1>nul 2>nul
+                            del "%lvia%.!cnxt!" /q 1>nul 2>nul
 
                             rem Adapt the via file
-                            if exist %vsrt%.%%i.via for /f "delims=!" %%b in (%vsrt%.%%i.via) do (
+                            if exist "%vsrt%.%%i.via" for /f "delims=!" %%b in (%vsrt%.%%i.via) do (
                                 rem Adapt the via line and store it
                                 set "vcmd=%%b"
                                 call :cleanvcmd && set "vcmd=!pcmd!"
@@ -909,7 +910,7 @@ if not "!vdeb!"=="" echo       Create argument list...
                                     rem Copy the list of source files if requested
                                     if "%%i"=="LNK_" (
                                         rem If a destination link files list exists, use it for linking
-                                        if exist %vlnk%.0 (
+                                        if exist "%vlnk%.0" (
                                             rem Linking requires the destination link files list
                                             type "%vlnk%.0" >> "%lvia%.!cnxt!"
                                         ) else (
@@ -990,7 +991,7 @@ rem                exit /b !verr!
                     if not "!mbin!"=="" dir "!mdst!\*.!mbin!" %vdir% >> "%vsrt%.%%i.6"
                     if exist "%vsrt%.%%i.6" (
 rem                        sort "%vsrt%.%%i.6" > "%vsrt%.%%i.5"
-                        copy /y "%vsrt%.%%i.6" "%vsrt%.%%i.5" 1>nul 2>nul
+                        copy "%vsrt%.%%i.6" "%vsrt%.%%i.5" /y 1>nul 2>nul
 
                         rem Remove already duplicated files
                         findstr /i /v "!mdup!" "%vsrt%.%%i.5" > "%vsrt%.%%i.6"
@@ -998,7 +999,7 @@ if not "!vdeb!"=="" echo mdup=!mdup!
                         echo  Duplicating destination files... %clog%
                         if exist "%vsrt%.%%i.6" for /f "delims=!" %%a in (%vsrt%.%%i.6) do (
 if not "!vdeb!"=="" echo dup=%%a
-                            copy %%a "!mdup!" /y 1>nul 2>nul
+                            copy "%%a" "!mdup!" /y 1>nul 2>nul
                         )
                     )
                 )
@@ -1027,13 +1028,13 @@ set "mrun="
 
 :cleanup
     rem Deleting CPU lock files
-    del %lbat%* /q 1>nul 2>nul
-    del %lcpu%* /q 1>nul 2>nul
-    del %lerr%* /q 1>nul 2>nul
-    del %lvia%* /q 1>nul 2>nul
+    del "%lbat%*" /q 1>nul 2>nul
+    del "%lcpu%*" /q 1>nul 2>nul
+    del "%lerr%*" /q 1>nul 2>nul
+    del "%lvia%*" /q 1>nul 2>nul
 
     rem Deleting source files list, log files, command files, etc...
-rem    del %vdst% /s /f /q 1>nul 2>nul
+rem    del "%vdst%" /s /f /q 1>nul 2>nul
 
     rem Expand again the relative path of the configuration file
     set "vrel=%~dp2"
@@ -1113,7 +1114,7 @@ goto :eof
                 set "verr=%perr%"
             )
         )
-        del %%l /q 1>nul 2>nul
+        del "%%l" /q 1>nul 2>nul
     )
 goto :eof
 
