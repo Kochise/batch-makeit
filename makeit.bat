@@ -632,7 +632,12 @@ if not "!vdeb!"=="" echo mcpy=!mcpy!
                 if not "!mcli!"=="" for %%j in (!mcli!) do (
                     if "%%j"=="LOC" set "vexe=!vexe!"!mloc!\"
                     if "%%j"=="EXE" (
-                        set "vexe=!vexe!!mexe!"
+                        if "!mexe:~1,1!"==":" (
+                            rem If executable seems absolute, expand and keep it as-is
+                            call :expandpath "!mexe!" && set "vexe=!pexp!"
+                        ) else (
+                            set "vexe=!vexe!!mexe!"
+                        )
                         rem If command line started with a quote (note the hideous syntax)
                         if "!vexe:~0,1!"==^"^"^" set "vexe=!vexe!""
 rem                        set "vexe=!vexe! "
@@ -683,11 +688,11 @@ rem                        set "vexe=!vexe! "
                     )
                 )
 
-if not "!vdeb!"=="" echo arg-vtmp=%%j-!vtmp!
+if not "!vdeb!"=="" echo arg-vtmp="%%j-!vtmp!"
 
                 rem Clean up the command line
-                set "vcmd=!vexe!" && call :cleanvcmd && set "vexe=!pcmd!"
-                set "vcmd=!vtmp!" && call :cleanvcmd && set "vtmp=!pcmd!"
+                if not "!vexe!"=="" set "vcmd=!vexe!" && call :cleanvcmd && set "vexe=!pcmd!"
+                if not "!vtmp!"=="" set "vcmd=!vtmp!" && call :cleanvcmd && set "vtmp=!pcmd!"
 
                 rem Each extension, list files
                 if not "!mext!"=="" for %%a in (!mext!) do (
@@ -696,6 +701,9 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
                 ) else (
                     rem If no extension, execute at least once (ie. simple batch execution)
                     echo.> "%vsrt%.%%i.0" 2>nul
+					set "vcmd=$[FILE]"
+                    call :adaptvcmd "%2" "!vexe!" "!msrc!" "!vrel!" ""
+                    echo Running '!pcmd!'...> "%vsrt%.%%i.1" 2>nul
                 )
 
                 rem If linker and destination link files list present
@@ -703,6 +711,8 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
 rem                   copy "%vlnk%.0" "%vsrt%.%%i.0" /y 1>nul 2>nul
                    findstr "!mlnk!" "%vlnk%.0" > "%vsrt%.%%i.0"
                 )
+
+                set "vcmd="
 
 if not "!vdeb!"=="" echo   Listing and excluding...
 
@@ -887,16 +897,23 @@ if not "!vdeb!"=="" echo       Adapt destination file...
 
 if not "!vdeb!"=="" echo       Create argument list...
 
+rem  echo vcmd1="!vcmd!"
+
                         if "!mvia!"=="" (
                             rem Get the clean command line
-                            set "vcmd=!vtmp!"
-                            rem Pass the file list only if used (try to avoid the 8192 bytes bug)
-                            if not "!vtmp!"=="!vtmp:$[LIST]=!" (
-                                call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
-                            ) else (
-                                call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" ""
+rem  echo vtmp3="!vtmp!"
+                            if not "!vtmp!"=="" (
+rem  echo Do it :/
+                                set "vcmd=!vtmp!"
+                                rem Pass the file list only if used (try to avoid the 8192 bytes bug)
+                                if not "!vtmp!"=="!vtmp:$[LIST]=!" (
+                                    call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
+                                ) else (
+                                    call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" ""
+                                )
+                                set "vcmd=!pcmd!"
                             )
-                            set "vcmd=!pcmd!"
+rem  echo vcmd2="!vcmd!"
                         ) else (
                             rem Del the via file
                             del "%lvia%.!cnxt!" /q 1>nul 2>nul
@@ -946,17 +963,26 @@ if not "!vdeb!"=="" echo       Process file...
                         echo !vexe! !vcmd!>> "%vsrt%.%%i.3"
                         if not "!mvia!"=="" type "%lvia%.!cnxt!" >> "%vsrt%.%%i.3"
 
+rem  echo vcmd3="!vcmd!"
+
                         rem Remove bad formated argument
                         if "!vcmd!"=="^" =^"" (
-rem                            echo vcmd="!vcmd!"
 rem                            set "vcmd="
                         )
 
                         rem The 'affinity' parameter BITFIELD select the CPU
                         set /a "crun=!cnxt!-1"
                         call :tohex !crun!
+
+                        rem If command line not started with a quote, add them
+rem                        if not "!vexe:~0,1!"==^"^"^" set vexe="!vexe!"
+						
+                        rem If executable path is empty, use current one
+                        if "!mdst!"=="" set "mdst=%CD%"
+
                         rem Direct execution
                         start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
+
                         rem Remote batch execution to catch errorlevel exit code
 rem FIXME: currently batch file error loggers unused (not enough parameters)
                         rem If the !vcmd! argument chain gets exploded and unresolved, use the via option
