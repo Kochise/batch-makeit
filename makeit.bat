@@ -1,35 +1,35 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH v2.4 2013-2018
+rem Extended Batch Makefile by David KOCH v2.5 2013-2018
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
-rem Argument  %0	%1   %2		%3			%4
-rem				|	|			|				|
-rem				|	|			|			specify a logfile, or if
-rem				|	|			|			empty, will create one by
-rem				|	|			|			default, unless "nolog"
-rem				|	|			|			is used instead (useful
-rem				|	|			|			when running under the
-rem				|	|			|			Jenkins framework)
-rem				|	|			|
-rem				|	|		optional text file with one line per
-rem				|	|		exclusion, 'findstr' format: just a part
-rem				|	|		of the path and/or file name to be found
-rem				|	|		is enough to exclude the whole line
-rem				|	|
-rem				|   make_file[.txt] is the configuration file
-rem				|
-rem				all	- do "clean" to "run"
-rem				partial  - do "clean" to "flash" (no "run")
-rem				rebuild  - do "clean" to "link" (no "flash" and "run")
-rem				quick	- do "compile" to "run" (no "clean)
-rem				build	- do "compile" and "link" (with pre/post build)
-rem				clean	- clean destination folder from old files
+rem Argument	%0	%1		%2			%3					%4
+rem					|		|			|					|
+rem					|		|			|	specify a logfile, or if
+rem					|		|			|	empty, will create one by
+rem					|		|			|	default, unless "nolog"
+rem					|		|			|	is used instead (useful
+rem					|		|			|	when running under the
+rem					|		|			|	Jenkins framework)
+rem					|		|			|
+rem					|		|	optional text file with one line per
+rem					|		|	exclusion, 'findstr' format: just a part
+rem					|		|	of the path and/or file name to be found
+rem					|		|	is enough to exclude the whole line
+rem					|		|
+rem					|	make_file[.txt] is the configuration file
+rem					|
+rem				all		 - do "clean" to "run"
+rem				partial	 - do "clean" to "flash" (no "run")
+rem				rebuild	 - do "clean" to "link" (no "flash" and "run")
+rem				quick	 - do "compile" to "run" (no "clean)
+rem				build	 - do "compile" and "link" (with pre/post build)
+rem				clean	 - clean destination folder from old files
 rem				assemble - assemble ASM_EXT minus ASM_EXC files
-rem				compile  - compile CPP_EXT minus CPP_EXC files (pre build)
-rem				link	- link LNK_EXT files into LNK_OBJ (post build)
-rem				flash	- flash LNK_BIN file using default parameters
-rem				run	- launch the selected debugger executable
-rem				map	- perform mapping analysis
+rem				compile	 - compile CPP_EXT minus CPP_EXC files (pre build)
+rem				link	 - link LNK_EXT files into LNK_OBJ (post build)
+rem				flash	 - flash LNK_BIN file using default parameters
+rem				run		 - launch the selected debugger executable
+rem				map		 - perform mapping analysis
 
 rem Todo list (Oh No! More Lemmings)
 rem Correct error management through batch files for multi-core compilation
@@ -45,8 +45,12 @@ rem 'findstr' sucks ass as hell, /r is buggy, first string should start with \
 rem 'xcopy' is bug ridden, but so is 'robocopy', hence not much luck there
 rem And these damn paths with a space into them, not easy to collate them
 
+rem http://www.robvanderwoude.com/shorts.php
+rem http://waynes-world-it.blogspot.fr/
+rem http://ss64.com/nt/
+
 rem For correct string substitution, need delayed variable expansion
-rem !var! will access the run-time value and %var% the parsed value
+rem %var% will access the parsed value and !var! the run-time value
 rem Beware: you'll scratch your head several times with this shit
 setlocal enabledelayedexpansion
 
@@ -165,7 +169,7 @@ echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
 if not "%vexc%"=="" echo Makeit exc : !vexc:%vrel%=.\! %clog%
 echo Makeit log : !vlog:%vrel%=.\! %clog%
 echo --- %vtxt% --------------------------------------------------------------- %clog%
-echo: %clog%
+echo:%clog%
 
 rem Start the job
 echo Parsing make file... %clog%
@@ -180,7 +184,7 @@ set "vtag=INCLUDE="
 
 rem Three levels include (if more, you should question yourself)
 for /l %%h in (1,1,%vpas%) do (
-	echo   Inclusion level %%h/%vpas% %clog%
+rem	echo   Inclusion level %%h/%vpas% %clog%
 	if exist "%vslv%.0" (
 		rem Find INCLUDE tags
 		findstr /b "%vtag%" "%vslv%.0" >"%vslv%.1"
@@ -273,7 +277,7 @@ rem echo vtag="%vtag%" %clog%
 
 rem Multipass (c) Leeloo Dallas
 for /l %%h in (1,1,%vpas%) do (
-	echo   Resolution level %%h/%vpas% %clog%
+rem	echo   Resolution level %%h/%vpas% %clog%
 	rem Beware: this only resolve paths, it CANNOT be used for argument replacement
 	rem Because: how can you differentiate a file (to expand) from an argument?
 	if exist "%vslv%.0" (
@@ -291,8 +295,8 @@ for /l %%h in (1,1,%vpas%) do (
 			for /f "tokens=1* delims=:" %%i in (%vslv%.1) do (
 				rem Read second token from 'findstr' ('%%i:%%j' = 'linenum:string')
 				if not "%%j"=="" (
-rem echo --read line num - %%i
-rem echo --read line str - %%j
+if not "!vdeb!"=="" echo --read line num - %%i
+if not "!vdeb!"=="" echo --read line str - %%j
 					rem Copy previous lines
 					call :copyline !adst! %%i "%vslv%.3" "%vslv%.0"
 					
@@ -308,13 +312,16 @@ rem echo --read line str - %%j
 						set "vtmp=!vtmp:${CD}=%vrel%!"
 
 						rem Find first line
-						call :findline "tokens=1* delims==" "^%%k=" "%vslv%.3"
+						call :findline "tokens=1,* delims==" "^%%k=" "%vslv%.3"
 						
 						rem Look for the resolved parameter
 						if not "!plin!"=="" (
 							rem Check if it can be solved as a path
 							call :expandpath "!plin!" && set "vinc=!pexp!"
 							set "vinc=!vinc:%vrel%=!"
+if not "!vdeb!"=="" echo   --read line plin - !plin!
+if not "!vdeb!"=="" echo   --read line pexp - !pexp!
+if not "!vdeb!"=="" echo   --read line vinc - !vinc!
 
 							rem If not solved into current path
 							if "!vinc!"=="!plin!" (
@@ -328,6 +335,7 @@ rem echo --read line str - %%j
 							)
 						)
 
+if not "!vdeb!"=="" echo   --read line vtmp - !vtmp!
 						rem Store the resolved argument for the next pass
 						echo !vtmp!>>"%vslv%.0"
 					)
@@ -347,7 +355,7 @@ rem echo --read line str - %%j
 )
 
 rem Quit (for debug)
-goto :eof
+rem goto :eof
 
 rem You can compare "%vslv%.0" with "%vslv%.3" to check the variable expansion
 rem sort "%vslv%.0" >"%vsrt%.0"
@@ -441,11 +449,11 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
 				if "%%j"=="VIA" (
 					rem If VIA tag previously empty, flush arguments
 					if "!mvia!"=="" if not "!vtmp!"=="" (
-						echo !marg!> "%vsrt%.%%i.arg"
-						echo !mdef!> "%vsrt%.%%i.def"
-						echo !minc!> "%vsrt%.%%i.inc"
-						echo !mlib!> "%vsrt%.%%i.lib"
-						echo !mtmp!> "%vsrt%.%%i.tmp"
+						echo !marg!>"%vsrt%.%%i.arg"
+						echo !mdef!>"%vsrt%.%%i.def"
+						echo !minc!>"%vsrt%.%%i.inc"
+						echo !mlib!>"%vsrt%.%%i.lib"
+						echo !mtmp!>"%vsrt%.%%i.tmp"
 					)
 					set "mvia=!vtmp!"
 				)
@@ -565,8 +573,8 @@ rem			set "mbut=!mbut:/=\!"
 					rem If not same destination directory as previous step
 					if not "!mdst!"=="!mold!" (
 						echo  Creating destination folder... %clog%
-if not "!vdeb!"==""	echo msrc=!msrc!
-if not "!vdeb!"==""	echo mdst=!mdst!
+if not "!vdeb!"==""		echo msrc=!msrc!
+if not "!vdeb!"==""		echo mdst=!mdst!
 
 						rem Create root destination directory
 						mkdir "!mdst!" 2>nul
@@ -698,8 +706,8 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
 
 				rem If linker and destination link files list present
 				if "%%i"=="LNK_" if not "!mlnk!"=="" if exist %vlnk%.0 (
-rem				copy "%vlnk%.0" "%vsrt%.%%i.0" /y 1>nul 2>nul
-				findstr "!mlnk!" "%vlnk%.0" >"%vsrt%.%%i.0"
+rem					copy "%vlnk%.0" "%vsrt%.%%i.0" /y 1>nul 2>nul
+					findstr "!mlnk!" "%vlnk%.0" >"%vsrt%.%%i.0"
 				)
 
 				set "vcmd="
@@ -728,14 +736,14 @@ if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
 								for /f "delims=!" %%a in (%vsrt%.%%i.5) do (
 									if not "%vdup%"=="%%a" (
 										set "vdup=%%a"
-										echo %%a>>"%vsrt%.%%i.4"
+										echo:%%a>>"%vsrt%.%%i.4"
 									)
 								)
 							)
 						)
 					)
 
-if not "!vdeb!"=="" echo   Listing remaining files...
+if not "!vdeb!"=="" echo     Listing remaining files...
 
 					rem List the remaining files
 					if exist %vsrt%.%%i.4 (
@@ -748,7 +756,7 @@ rem							for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
 						)
 
 						for /f "delims=!" %%a in (%vsrt%.%%i.4) do (
-							echo %%a>>"%vsrt%.%%i.1"
+							echo:%%a>>"%vsrt%.%%i.1"
 							rem FIXME Beware of files with space in name
 							set "vlst=!vlst! %%a"
 							rem Resolve file list as being relative to source
@@ -756,7 +764,7 @@ rem							for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
 						)
 					)
 
-if not "!vdeb!"=="" echo   Remove remaining files...
+if not "!vdeb!"=="" echo     Remove remaining files...
 
 					rem Remove the remaining files list
 					del "%vsrt%.%%i.4" /q 1>nul 2>nul
@@ -791,15 +799,15 @@ if not "!vdeb!"=="" echo   Executing command on each listed file...
 					rem Create the relative destination path from source path
 					if not "!vrel!"=="" set "vrel=%%~dpa"
 
-if not "!vdeb!"=="" echo   vrel=!vrel!
-if not "!vdeb!"=="" echo   msrc=!msrc!
-if not "!vdeb!"=="" echo   mdst=!mdst!
+if not "!vdeb!"=="" echo     vrel=!vrel!
+if not "!vdeb!"=="" echo     msrc=!msrc!
+if not "!vdeb!"=="" echo     mdst=!mdst!
 
 					set "vrel=!vrel:/=\!"
 					if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
 					call set "vrel=%%vrel:!msrc!=!mdst!%%"
 
-if not "!vdeb!"=="" echo   Checking if file is newer...
+if not "!vdeb!"=="" echo     Checking if file is newer...
 
 					rem File to process flag
 					set "vchk="
@@ -829,7 +837,7 @@ rem							xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
 						set "vchk=1"
 					)
 
-if not "!vdeb!"=="" echo   Checking file dependencies...
+if not "!vdeb!"=="" echo     Checking file dependencies...
 
 					rem Check file dependencies (can be quite long, sadly)
 					set "vdep="
@@ -870,7 +878,7 @@ rem								xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
 						)
 						del "%lcpu%.!cnxt!" /q 1>nul 2>nul
 
-if not "!vdeb!"=="" echo   Adapt destination file...
+if not "!vdeb!"=="" echo       Adapt destination file...
 
 						rem Adapt destination link file if found
 						if not "%%i"=="LNK_" if not "!mlnk!"=="" (
@@ -885,7 +893,7 @@ if not "!vdeb!"=="" echo   Adapt destination file...
 							echo !vcmd!>>"%vlnk%.0"
 						)
 
-if not "!vdeb!"=="" echo   Create argument list...
+if not "!vdeb!"=="" echo       Create argument list...
 
 rem  echo vcmd1="!vcmd!"
 
@@ -930,7 +938,7 @@ rem  echo vcmd2="!vcmd!"
 								) else (
 									rem Adapt the command-line in !vcmd!
 									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "" && set "vcmd=!pcmd!"
-									echo !vcmd!>>"%lvia%.!cnxt!"
+									echo:!vcmd!>>"%lvia%.!cnxt!"
 								)
 							)
 
@@ -938,7 +946,7 @@ rem  echo vcmd2="!vcmd!"
 							set "vcmd=!mvia!"%lvia%.!cnxt!""
 						)
 
-if not "!vdeb!"=="" echo   Process file...
+if not "!vdeb!"=="" echo       Process file...
 
 						rem Keep the expanded command line for debugging purpose
 						echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
@@ -1068,24 +1076,24 @@ rem	del "%vdst%" /s /f /q 1>nul 2>nul
 	echo Store the result in a log file (default is ".\'cmd'.log")
 	echo:
 	echo Param = cmd
-	echo   	: all	- do "clean" to "run"
-	echo   	: partial  - do "clean" to "flash" (no "run")
-	echo   	: rebuild  - do "clean" to "link" (no "flash" and "run")
-	echo   	: quick	- do "compile" to "run" (no "clean")
-	echo   	: build	- do "compile" and "link" (with pre/post build)
-	echo   	: clean	- clean destination folder from old files
-	echo   	: assemble - assemble ASM_EXT minus ASM_EXC files
-	echo   	: compile  - compile CPP_EXT minus CPP_EXC files (pre build)
-	echo   	: link	- link LNK_EXT files into LNK_OBJ (post build)
-	echo   	: flash	- flash LNK_BIN file using default parameters
-	echo   	: run	- launch the selected debugger executable
-	echo   	: map	- perform mapping analysis
+	echo          : all      - do "clean" to "run"
+	echo          : partial  - do "clean" to "flash" (no "run")
+	echo          : rebuild  - do "clean" to "link" (no "flash" and "run")
+	echo          : quick    - do "compile" to "run" (no "clean")
+	echo          : build    - do "compile" and "link" (with pre/post build)
+	echo          : clean    - clean destination folder from old files
+	echo          : assemble - assemble ASM_EXT minus ASM_EXC files
+	echo          : compile  - compile CPP_EXT minus CPP_EXC files (pre build)
+	echo          : link     - link LNK_EXT files into LNK_OBJ (post build)
+	echo          : flash    - flash LNK_BIN file using default parameters
+	echo          : run      - launch the selected debugger executable
+	echo          : map      - perform mapping analysis
 	echo Param = make_file
-	echo   	: the configuration file that contain the making rules
+	echo          : the configuration file that contain the making rules
 	echo Param = ["exclude_file.txt"]
-	echo   	: a text file which contains paths to exclude
+	echo          : a text file which contains paths to exclude
 	echo Param = ["log_file"/"nolog"]
-	echo   	: name of a log file to produce, "nolog" for nul
+	echo          : name of a log file to produce, "nolog" for nul
 
 :end
 	echo ------------------------------------------------------------------------------- %clog%
@@ -1114,14 +1122,18 @@ if not "!vdeb!"=="" echo   read file dst - %4
 		set skipline=
 	)
 if not "!vdeb!"=="" echo   read skip - %skipline%
-	for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n "^" %3') do (
+	for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n "^" "%3"') do (
 		rem Read second token from 'findstr' ('linenum:string' : %%l:%%m)
-		if %%l lss %2 (
+		if 0 lss %2 (
+			if %%l lss %2 (
 if not "!vdeb!"=="" echo     read file num - %%l
 if not "!vdeb!"=="" echo     read file str - %%m
-			echo:%%m>>%4
+				echo:%%m>>%4
+			) else (
+				exit /b 0
+			)
 		) else (
-			exit /b 0
+			echo:%%m>>%4
 		)
 	)
 goto :eof
@@ -1136,8 +1148,11 @@ if not "!vdeb!"=="" echo   read line tag - %2
 	set "vtag=!vtag:^^=^!"
 if not "!vdeb!"=="" echo   read line tag - !vtag!
 if not "!vdeb!"=="" echo   read file src - %3
-	for /f %1 %%m in ('findstr !vtag! %3') do (
+	set "vcmd=findstr /n !vtag! "%3"
+if not "!vdeb!"=="" echo   read file cmd - !vcmd!
+	for /f %1 %%l in ('!vcmd!') do (
 		rem Read tokens from 'findstr'
+if not "!vdeb!"=="" echo     read file num - %%l
 if not "!vdeb!"=="" echo     read file str - %%m
 		set "plin=%%m"
 if not "!vdeb!"=="" echo     read file ret - !plin!
@@ -1156,7 +1171,7 @@ if not "!vdeb!"=="" echo   read file src - %2
 		set skipline=
 	)
 if not "!vdeb!"=="" echo   read skip - %skipline%
-	for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n "^" %2') do (
+	for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n "^" "%2"') do (
 		rem Read second token from 'findstr' ('%%l:%%m' = 'linenum:string')
 if not "!vdeb!"=="" echo     read file num - %%l
 if not "!vdeb!"=="" echo     read file str - %%m
@@ -1287,9 +1302,9 @@ rem Surround the detected sections with the numbered lines
 
 	echo Debug-------1 \
 	echo Debug  -------2 \
-	echo Debug	-------3 \
-	echo Debug	-------4 \
-	echo Debug	-------4 /
-	echo Debug	-------3 /
+	echo Debug    -------3 \
+	echo Debug      -------4 \
+	echo Debug      -------4 /
+	echo Debug    -------3 /
 	echo Debug  -------2 /
 	echo Debug-------1 /
