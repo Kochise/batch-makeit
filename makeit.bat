@@ -53,6 +53,9 @@ setlocal enabledelayedexpansion
 rem Set this variable to get some fancy debug output
 set "vdeb="
 
+rem Set this variable to get more iterative pass
+set /a "vpas=3"
+
 rem Convert current time and date in a more usable format
 for /f "tokens=1,2,3,4 delims=/ " %%a in ("%date%") do set "fdate=%%d%%c%%b%%a"
 for /f "tokens=1,2,3,4 delims=:," %%a in ("%time%") do set "ftime=%%a%%b%%c%%d"
@@ -176,8 +179,8 @@ copy /y "%vsrc%" "%vslv%.0" 1>nul 2>nul
 set "vtag=INCLUDE="
 
 rem Three levels include (if more, you should question yourself)
-for /l %%h in (1,1,3) do (
-	echo   Inclusion level %%h/3 %clog%
+for /l %%h in (1,1,%vpas%) do (
+	echo   Inclusion level %%h/%vpas% %clog%
 	if exist "%vslv%.0" (
 		rem Find INCLUDE tags
 		findstr /b "%vtag%" "%vslv%.0" >"%vslv%.1"
@@ -269,76 +272,82 @@ set "vtag=${.*}"
 rem echo vtag="%vtag%" %clog%
 
 rem Multipass (c) Leeloo Dallas
-for /l %%h in (1,1,3) do (
-	echo   Resolution level %%h/3 %clog%
+for /l %%h in (1,1,%vpas%) do (
+	echo   Resolution level %%h/%vpas% %clog%
 	rem Beware: this only resolve paths, it CANNOT be used for argument replacement
 	rem Because: how can you differentiate a file (to expand) from an argument?
 	if exist "%vslv%.0" (
 		rem Find unsolved argument to process
-		findstr "%vtag%" "%vslv%.0" >"%vslv%.1"
+		findstr /n "%vtag%" "%vslv%.0" >"%vslv%.1"
 		if "0"=="!errorlevel!" (
 			rem Save original file before recreation
 			copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
 			del "%vslv%.0" /q 1>nul 2>nul
 
-			rem Read original file (include blank lines through 'findstr')
-			for /f "tokens=1* delims=:" %%i in ('findstr /n "^" "%vslv%.3"') do (
+			rem Start line number
+			set /a "adst=0"
+
+			rem Read unsolved argument to process (include blank lines through 'findstr')
+			for /f "tokens=1* delims=:" %%i in (%vslv%.1) do (
 				rem Read second token from 'findstr' ('%%i:%%j' = 'linenum:string')
 				if not "%%j"=="" (
-rem					echo j="%%j" %clog%
-					rem Check if it is a  ${.*} line
-rem					findstr /l /c:"%%j" "%vslv%.1" >nul	/!\ bug if backslash in %%j
-					echo "%%j"|findstr "%vtag%" >nul
-					if "0"=="!errorlevel!" (
-						rem Each token found
-						for /f "tokens=2 delims={}" %%k in ("%%j") do (
-							rem Read second token ('_{%%k}%%l' = '_{tag}_')
+rem echo --read line num - %%i
+rem echo --read line str - %%j
+					rem Copy previous lines
+					call :copyline !adst! %%i "%vslv%.3" "%vslv%.0"
+					
+					rem Each token found
+					for /f "tokens=2 delims={}" %%k in ("%%j") do (
+						rem Read second token ('_{%%k}%%l' = '_{tag}_')
 
-							rem Get complete ${.*} line
-							set "vtmp=%%j"
-							rem Replace conf token with current 'conf' parameter
-							set "vtmp=!vtmp:${CONF}=%2!"
-							rem Replace cd token with current directory
-							set "vtmp=!vtmp:${CD}=%vrel%!"
+						rem Get complete ${.*} line
+						set "vtmp=%%j"
+						rem Replace conf token with current 'conf' parameter
+						set "vtmp=!vtmp:${CONF}=%2!"
+						rem Replace cd token with current directory
+						set "vtmp=!vtmp:${CD}=%vrel%!"
 
-							rem Look for the resolved parameter
-							for /f "tokens=2* delims==" %%l in ('findstr /b "%%k=" "%vslv%.3"') do (
-								rem Read second token from 'findstr' ('_=%%l' = 'tag=string')
+						rem Find first line
+						call :findline "tokens=1* delims==" "^%%k=" "%vslv%.3"
+						
+						rem Look for the resolved parameter
+						if not "!plin!"=="" (
+							rem Check if it can be solved as a path
+							call :expandpath "!plin!" && set "vinc=!pexp!"
+							set "vinc=!vinc:%vrel%=!"
 
-								rem Check if it can be solved as a path
-								set "vinc=%%~fl"
-								set "vinc=!vinc:%vrel%=!"
-
-								rem If not solved into current path
-								if "!vinc!"=="%%l" (
-									rem Replace token with target value
-									set "vtmp=!vtmp:${%%k}=%%l!"
-								) else (
-									rem Replace token with resolved and expanded path (~f) parameter
-									set "vtmp=!vtmp:${%%k}=%%~fl!"
-									rem Ensure backslash in path (because 'dir' produces such)
-									set "vtmp=!vtmp:/=\!"
-								)
+							rem If not solved into current path
+							if "!vinc!"=="!plin!" (
+								rem Replace token with target value
+								call set "vtmp=%%vtmp:${%%k}=!plin!%%"
+							) else (
+								rem Replace token with resolved and expanded path (~f) parameter
+								call set "vtmp=%%vtmp:${%%k}=!pexp!%%"
+								rem Ensure backslash in path (because 'dir' produces such)
+								set "vtmp=!vtmp:/=\!"
 							)
-
-							rem Store the resolved argument for the next pass
-							echo !vtmp!>>"%vslv%.0"
 						)
-					) else (
-						rem Inject old line
-						echo %%j>>"%vslv%.0"
+
+						rem Store the resolved argument for the next pass
+						echo !vtmp!>>"%vslv%.0"
 					)
 				) else (
 					rem Inject old line
 					echo:>>"%vslv%.0"
 				)
+
+				rem Next line number
+				set /a "adst=%%i"
 			)
+
+			rem Copy remaining lines
+			call :copyline !adst! 0 "%vslv%.3" "%vslv%.0"
 		)
 	)
 )
 
 rem Quit (for debug)
-rem goto :eof
+goto :eof
 
 rem You can compare "%vslv%.0" with "%vslv%.3" to check the variable expansion
 rem sort "%vslv%.0" >"%vsrt%.0"
@@ -726,7 +735,7 @@ if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
 						)
 					)
 
-if not "!vdeb!"=="" echo	Listing remaining files...
+if not "!vdeb!"=="" echo   Listing remaining files...
 
 					rem List the remaining files
 					if exist %vsrt%.%%i.4 (
@@ -747,7 +756,7 @@ rem							for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
 						)
 					)
 
-if not "!vdeb!"=="" echo	Remove remaining files...
+if not "!vdeb!"=="" echo   Remove remaining files...
 
 					rem Remove the remaining files list
 					del "%vsrt%.%%i.4" /q 1>nul 2>nul
@@ -782,15 +791,15 @@ if not "!vdeb!"=="" echo   Executing command on each listed file...
 					rem Create the relative destination path from source path
 					if not "!vrel!"=="" set "vrel=%%~dpa"
 
-if not "!vdeb!"=="" echo	vrel=!vrel!
-if not "!vdeb!"=="" echo	msrc=!msrc!
-if not "!vdeb!"=="" echo	mdst=!mdst!
+if not "!vdeb!"=="" echo   vrel=!vrel!
+if not "!vdeb!"=="" echo   msrc=!msrc!
+if not "!vdeb!"=="" echo   mdst=!mdst!
 
 					set "vrel=!vrel:/=\!"
 					if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
 					call set "vrel=%%vrel:!msrc!=!mdst!%%"
 
-if not "!vdeb!"=="" echo	Checking if file is newer...
+if not "!vdeb!"=="" echo   Checking if file is newer...
 
 					rem File to process flag
 					set "vchk="
@@ -820,7 +829,7 @@ rem							xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
 						set "vchk=1"
 					)
 
-if not "!vdeb!"=="" echo	Checking file dependencies...
+if not "!vdeb!"=="" echo   Checking file dependencies...
 
 					rem Check file dependencies (can be quite long, sadly)
 					set "vdep="
@@ -861,7 +870,7 @@ rem								xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
 						)
 						del "%lcpu%.!cnxt!" /q 1>nul 2>nul
 
-if not "!vdeb!"=="" echo	Adapt destination file...
+if not "!vdeb!"=="" echo   Adapt destination file...
 
 						rem Adapt destination link file if found
 						if not "%%i"=="LNK_" if not "!mlnk!"=="" (
@@ -876,7 +885,7 @@ if not "!vdeb!"=="" echo	Adapt destination file...
 							echo !vcmd!>>"%vlnk%.0"
 						)
 
-if not "!vdeb!"=="" echo	Create argument list...
+if not "!vdeb!"=="" echo   Create argument list...
 
 rem  echo vcmd1="!vcmd!"
 
@@ -929,7 +938,7 @@ rem  echo vcmd2="!vcmd!"
 							set "vcmd=!mvia!"%lvia%.!cnxt!""
 						)
 
-if not "!vdeb!"=="" echo	Process file...
+if not "!vdeb!"=="" echo   Process file...
 
 						rem Keep the expanded command line for debugging purpose
 						echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
@@ -1059,24 +1068,24 @@ rem	del "%vdst%" /s /f /q 1>nul 2>nul
 	echo Store the result in a log file (default is ".\'cmd'.log")
 	echo:
 	echo Param = cmd
-	echo		: all	- do "clean" to "run"
-	echo		: partial  - do "clean" to "flash" (no "run")
-	echo		: rebuild  - do "clean" to "link" (no "flash" and "run")
-	echo		: quick	- do "compile" to "run" (no "clean")
-	echo		: build	- do "compile" and "link" (with pre/post build)
-	echo		: clean	- clean destination folder from old files
-	echo		: assemble - assemble ASM_EXT minus ASM_EXC files
-	echo		: compile  - compile CPP_EXT minus CPP_EXC files (pre build)
-	echo		: link	- link LNK_EXT files into LNK_OBJ (post build)
-	echo		: flash	- flash LNK_BIN file using default parameters
-	echo		: run	- launch the selected debugger executable
-	echo		: map	- perform mapping analysis
+	echo   	: all	- do "clean" to "run"
+	echo   	: partial  - do "clean" to "flash" (no "run")
+	echo   	: rebuild  - do "clean" to "link" (no "flash" and "run")
+	echo   	: quick	- do "compile" to "run" (no "clean")
+	echo   	: build	- do "compile" and "link" (with pre/post build)
+	echo   	: clean	- clean destination folder from old files
+	echo   	: assemble - assemble ASM_EXT minus ASM_EXC files
+	echo   	: compile  - compile CPP_EXT minus CPP_EXC files (pre build)
+	echo   	: link	- link LNK_EXT files into LNK_OBJ (post build)
+	echo   	: flash	- flash LNK_BIN file using default parameters
+	echo   	: run	- launch the selected debugger executable
+	echo   	: map	- perform mapping analysis
 	echo Param = make_file
-	echo		: the configuration file that contain the making rules
+	echo   	: the configuration file that contain the making rules
 	echo Param = ["exclude_file.txt"]
-	echo		: a text file which contains paths to exclude
+	echo   	: a text file which contains paths to exclude
 	echo Param = ["log_file"/"nolog"]
-	echo		: name of a log file to produce, "nolog" for nul
+	echo   	: name of a log file to produce, "nolog" for nul
 
 :end
 	echo ------------------------------------------------------------------------------- %clog%
@@ -1092,22 +1101,67 @@ rem	del "%vdst%" /s /f /q 1>nul 2>nul
 	)
 goto :eof
 
-:readline
-	rem Read line from a file (include blank lines through 'findstr')
-if not "!vdeb!"=="" echo   read line - %1
-if not "!vdeb!"=="" echo   read file - %2
-	if %1 neq 0 (
+:copyline
+	rem Copy lines from a file (include blank lines through 'findstr')
+if not "!vdeb!"=="" echo copyline
+if not "!vdeb!"=="" echo   read line beg - %1
+if not "!vdeb!"=="" echo   read line end - %2
+if not "!vdeb!"=="" echo   read file src - %3
+if not "!vdeb!"=="" echo   read file dst - %4
+	if 0 lss %1 (
 		set skipline=skip=%1
 	) else (
 		set skipline=
 	)
-if not "!vdeb!"=="" echo	 read skip 0 - %skipline%
-	for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n ".*" "%2"') do (
-if not "!vdeb!"=="" echo	 read plin 1 - %%l
-if not "!vdeb!"=="" echo	 read plin 2 - %%m
+if not "!vdeb!"=="" echo   read skip - %skipline%
+	for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n "^" %3') do (
 		rem Read second token from 'findstr' ('linenum:string' : %%l:%%m)
+		if %%l lss %2 (
+if not "!vdeb!"=="" echo     read file num - %%l
+if not "!vdeb!"=="" echo     read file str - %%m
+			echo:%%m>>%4
+		) else (
+			exit /b 0
+		)
+	)
+goto :eof
+
+:findline
+	rem Find first line from a file (include blank lines through 'findstr')
+if not "!vdeb!"=="" echo findline
+if not "!vdeb!"=="" echo   read line tok - %1
+if not "!vdeb!"=="" echo   read line tag - %2
+	set "vtag=%2"
+	rem Remove escape character doubling
+	set "vtag=!vtag:^^=^!"
+if not "!vdeb!"=="" echo   read line tag - !vtag!
+if not "!vdeb!"=="" echo   read file src - %3
+	for /f %1 %%m in ('findstr !vtag! %3') do (
+		rem Read tokens from 'findstr'
+if not "!vdeb!"=="" echo     read file str - %%m
 		set "plin=%%m"
-if not "!vdeb!"=="" echo	 read plin 3 - !plin!
+if not "!vdeb!"=="" echo     read file ret - !plin!
+		exit /b 0
+	)
+goto :eof
+
+:readline
+	rem Read line from a file (include blank lines through 'findstr')
+if not "!vdeb!"=="" echo readline
+if not "!vdeb!"=="" echo   read line beg - %1
+if not "!vdeb!"=="" echo   read file src - %2
+	if 0 lss %1 (
+		set skipline=skip=%1
+	) else (
+		set skipline=
+	)
+if not "!vdeb!"=="" echo   read skip - %skipline%
+	for /f "%skipline% tokens=1,* delims=:" %%l in ('findstr /n "^" %2') do (
+		rem Read second token from 'findstr' ('%%l:%%m' = 'linenum:string')
+if not "!vdeb!"=="" echo     read file num - %%l
+if not "!vdeb!"=="" echo     read file str - %%m
+		set "plin=%%m"
+if not "!vdeb!"=="" echo     read file ret - !plin!
 		exit /b 0
 	)
 goto :eof
