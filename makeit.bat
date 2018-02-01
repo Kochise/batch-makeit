@@ -1148,7 +1148,7 @@ if not "!vdeb!"=="" echo   read line tag - %2
 	set "vtag=!vtag:^^=^!"
 if not "!vdeb!"=="" echo   read line tag - !vtag!
 if not "!vdeb!"=="" echo   read file src - %3
-	set "vcmd=findstr /n !vtag! "%3"
+	set "vcmd=findstr /n !vtag! ^"%3^""
 if not "!vdeb!"=="" echo   read file cmd - !vcmd!
 	for /f %1 %%l in ('!vcmd!') do (
 		rem Read tokens from 'findstr'
