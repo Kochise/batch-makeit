@@ -710,9 +710,10 @@ rem					copy "%vlnk%.0" "%vsrt%.%%i.0" /y 1>nul 2>nul
 					findstr "!mlnk!" "%vlnk%.0" >"%vsrt%.%%i.0"
 				)
 
+				rem Start anew
 				set "vcmd="
 
-if not "!vdeb!"=="" echo   Listing and excluding...
+if not "!vdeb!"=="" echo   Listing and excluding... %clog%
 
 				rem List real files to process
 				set "vlst="
@@ -727,9 +728,9 @@ if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
 						findstr /i /v "!mexc!" "%vsrt%.%%i.0" >"%vsrt%.%%i.4"
 						if not "!mbut!"=="" (
 							rem Add anti excluded files
-							findstr /i "!mbut!" "%vsrt%.%%i.0" >>"%vsrt%.%%i.4"
+							findstr /i "!mbut!" "%vsrt%.%%i.0" >>"%vsrt%.%%i.5"
 							rem Sort remaining files
-							sort "%vsrt%.%%i.4" >"%vsrt%.%%i.5"
+rem							sort "%vsrt%.%%i.4" >"%vsrt%.%%i.5"
 							rem Remove duplicate lines
 							if exist %vsrt%.%%i.5 (
 								del "%vsrt%.%%i.4" /q 1>nul 2>nul
@@ -743,7 +744,7 @@ if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
 						)
 					)
 
-if not "!vdeb!"=="" echo     Listing remaining files...
+if not "!vdeb!"=="" echo     Listing remaining files... %clog%
 
 					rem List the remaining files
 					if exist %vsrt%.%%i.4 (
@@ -764,14 +765,14 @@ rem							for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
 						)
 					)
 
-if not "!vdeb!"=="" echo     Remove remaining files...
+if not "!vdeb!"=="" echo     Remove remaining files... %clog%
 
 					rem Remove the remaining files list
 					del "%vsrt%.%%i.4" /q 1>nul 2>nul
 rem					if not "!vlst!"=="" echo !vlst! >"%vsrt%.%%i.4"
 				)
 
-if not "!vdeb!"=="" echo   File list finished...
+if not "!vdeb!"=="" echo   File list finished... %clog%
 
 				rem Linking just requires one pass with many inputs (LST)
 				if "%%i"=="LNK_" (
@@ -786,7 +787,7 @@ if not "!vdeb!"=="" echo   File list finished...
 				rem Display here a false message because the real work is done in the loop below
 				if not "!mdep!"=="" echo  Checking dependencies... %clog%
 
-if not "!vdeb!"=="" echo   Executing command on each listed file...
+if not "!vdeb!"=="" echo   Executing command on each listed file... %clog%
 
 				rem Now execute the commands for each source files found
 				if exist "%vsrt%.%%i.1" for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
@@ -807,7 +808,7 @@ if not "!vdeb!"=="" echo     mdst=!mdst!
 					if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
 					call set "vrel=%%vrel:!msrc!=!mdst!%%"
 
-if not "!vdeb!"=="" echo     Checking if file is newer...
+if not "!vdeb!"=="" echo     Checking if file is newer... %clog%
 
 					rem File to process flag
 					set "vchk="
@@ -837,7 +838,7 @@ rem							xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
 						set "vchk=1"
 					)
 
-if not "!vdeb!"=="" echo     Checking file dependencies...
+if not "!vdeb!"=="" echo     Checking file dependencies... %clog%
 
 					rem Check file dependencies (can be quite long, sadly)
 					set "vdep="
@@ -878,7 +879,7 @@ rem								xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
 						)
 						del "%lcpu%.!cnxt!" /q 1>nul 2>nul
 
-if not "!vdeb!"=="" echo       Adapt destination file...
+if not "!vdeb!"=="" echo       Adapt destination file... %clog%
 
 						rem Adapt destination link file if found
 						if not "%%i"=="LNK_" if not "!mlnk!"=="" (
@@ -893,7 +894,7 @@ if not "!vdeb!"=="" echo       Adapt destination file...
 							echo !vcmd!>>"%vlnk%.0"
 						)
 
-if not "!vdeb!"=="" echo       Create argument list...
+if not "!vdeb!"=="" echo       Create argument list... %clog%
 
 rem  echo vcmd1="!vcmd!"
 
@@ -946,7 +947,7 @@ rem  echo vcmd2="!vcmd!"
 							set "vcmd=!mvia!"%lvia%.!cnxt!""
 						)
 
-if not "!vdeb!"=="" echo       Process file...
+if not "!vdeb!"=="" echo       Process file... %clog%
 
 						rem Keep the expanded command line for debugging purpose
 						echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
@@ -996,6 +997,7 @@ rem						exit /b !verr!
 				)
 			)
 
+			rem Wait for all processes to exit
 			call :waitall
 
 			rem Check exit code
@@ -1033,11 +1035,14 @@ if not "!vdeb!"=="" echo dup=%%a
 			if not "!mlog!"=="" (
 				set "vcmd=!mlog!"
 				call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "" && set "mlog=!pcmd!"
-				type "!mlog!" %clog%
+				call :expandsize "!mlog!"
+				if not "!pexp!"=="0" (
+					type "!mlog!" %clog%
 
-				rem Backup step log into step report folder
-				if not "!mrpt!"=="" (
-					copy "!mlog!" "!mrpt!" /y 1>nul 2>nul
+					rem Backup step log into step report folder
+					if not "!mrpt!"=="" (
+						copy "!mlog!" "!mrpt!" /y 1>nul 2>nul
+					)
 				)
 			)
 
@@ -1052,10 +1057,10 @@ set "mrun="
 
 :cleanup
 	rem Deleting CPU lock files
-	del "%lbat%*" /q 1>nul 2>nul
-	del "%lcpu%*" /q 1>nul 2>nul
-	del "%lerr%*" /q 1>nul 2>nul
-	del "%lvia%*" /q 1>nul 2>nul
+	del "%lbat%*" /f /q 1>nul 2>nul
+	del "%lcpu%*" /f /q 1>nul 2>nul
+	del "%lerr%*" /f /q 1>nul 2>nul
+	del "%lvia%*" /f /q 1>nul 2>nul
 
 	rem Deleting source files list, log files, command files, etc...
 rem	del "%vdst%" /s /f /q 1>nul 2>nul
@@ -1130,7 +1135,7 @@ if not "!vdeb!"=="" echo     read file num - %%l
 if not "!vdeb!"=="" echo     read file str - %%m
 				echo:%%m>>%4
 			) else (
-				exit /b 0
+				exit /b
 			)
 		) else (
 			echo:%%m>>%4
@@ -1156,7 +1161,7 @@ if not "!vdeb!"=="" echo     read file num - %%l
 if not "!vdeb!"=="" echo     read file str - %%m
 		set "plin=%%m"
 if not "!vdeb!"=="" echo     read file ret - !plin!
-		exit /b 0
+		exit /b
 	)
 goto :eof
 
@@ -1177,7 +1182,7 @@ if not "!vdeb!"=="" echo     read file num - %%l
 if not "!vdeb!"=="" echo     read file str - %%m
 		set "plin=%%m"
 if not "!vdeb!"=="" echo     read file ret - !plin!
-		exit /b 0
+		exit /b
 	)
 goto :eof
 
@@ -1196,20 +1201,45 @@ goto :eof
 
 :waitall
 	rem Wait remaining CPU to unlock
-	ping /n 2 ::1 1>nul 2>nul
+rem	echo - - - START - - - - - - - - - - - - -%clog%
+rem	ping /n 0 ::1 1>nul 2>nul
 	for %%l in ("%lcpu%*") do (
-		rem Include remaining logs into the stream
-		type "%%l" %clog%
-		(call ) 9>"%%l" || goto :waitall
+		call :expandsize "%%l"
+		if not "!pexp!"=="0" (
+			rem Include remaining logs into the stream
+rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
+			type "%%l" %clog%
+			rem Flush file
+			ping /n 0 ::1 1>nul 2>nul
+			del "%%l" /q 1>nul 2>nul
+			echo>"%%l"
+rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
+		)
+		(call ) 9>"%%l" || (
+			ping /n 1 ::1 1>nul 2>nul
+			goto :waitall
+		)
 	) 2>nul
+rem	echo - - - END - - - - - - - - - - - - -%clog%
 goto :eof
 
 :waitcpu
 	rem Don't try to understand this, I was on coke... cake, I was on cake. It's not a lie!
+rem	echo = = = START = = = = = = = = = = = = =%clog%
+rem	ping /n 0 ::1 1>nul 2>nul
 	for /l %%c in (%cmin%,1,!mcpu!) do (
 		if not defined cexe%%c if exist "%lcpu%.%%c" (
-			rem Include current log into the stream
-			type "%lcpu%.%%c" %clog%
+			call :expandsize "%lcpu%.%%c"
+			if not "!pexp!"=="0" (
+				rem Include current log into the stream
+rem				echo = = = "%lcpu%.%%c" = = = = = = = = = = = = =%clog%
+				type "%lcpu%.%%c" %clog%
+				rem Flush file
+				ping /n 0 ::1 1>nul 2>nul
+				del "%lcpu%.%%c" /q 1>nul 2>nul
+				echo>"%lcpu%.%%c"
+rem				echo = = = "%lcpu%.%%c" = = = = = = = = = = = = =%clog%
+			)
 			if defined mrun (
 				set /a cnxt=%%c
 				exit /b
@@ -1223,6 +1253,7 @@ goto :eof
 		ping /n 1 ::1 1>nul 2>nul
 		goto :waitcpu
 	)
+rem	echo = = = END = = = = = = = = = = = = =%clog%
 goto :eof
 
 :tohex
