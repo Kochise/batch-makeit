@@ -555,12 +555,14 @@ rem			set "mbut=!mbut:/=\!"
 			if not "!mrem!"=="" (
 				echo --!mrem! %clog%
 			)
+		) else (
+rem			echo  ERROR : No executable file defined for "%%i" ! %clog%
 		)
 
 		rem /!\ Do *NOT* link these two 'not "!mexe!"==""' sections -> BUG
 
 		if not "!mexe!"=="" if "!msrc!"=="" (
-			echo  ERROR : No source path for "%%i" ! %clog%
+			echo  ERROR : Neither source nor destination path for "%%i" ! %clog%
 		) else (
 			rem Beware buddies, "LOC_" always *HAVE* to be the first tag in %vpre%
 			if "%%i"=="LOC_" (
@@ -784,217 +786,222 @@ if not "!vdeb!"=="" echo   File list finished... %clog%
 				set /a "cend=0"
 				for /l %%c in (%cmin%,1,%cmax%) do set "cexe%%c="
 
-				rem Display here a false message because the real work is done in the loop below
-				if not "!mdep!"=="" echo  Checking dependencies... %clog%
-
+				rem Check if the executable file actually really exists
+				if exist !vexe! if exist "%vsrt%.%%i.1" (
+					rem Display here a false message because the real work is done in the loop below
+					if not "!mdep!"=="" echo  Checking dependencies... %clog%
+	
 if not "!vdeb!"=="" echo   Executing command on each listed file... %clog%
-
-				rem Now execute the commands for each source files found
-				if exist "%vsrt%.%%i.1" for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
-					set "vrel=%%a"
-
-					rem Remove trailing and leading spaces
-					for /l %%l in (1,1,2) do if "!vrel:~-1!"==" " set "vrel=!vrel:~0,-1!"
-					for /l %%l in (1,1,2) do if "!vrel:~0,1!"==" " set "vrel=!vrel:~1!"
-
-					rem Create the relative destination path from source path
-					if not "!vrel!"=="" set "vrel=%%~dpa"
-
+	
+					rem Now execute the commands for each source files found
+					for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
+						set "vrel=%%a"
+	
+						rem Remove trailing and leading spaces
+						for /l %%l in (1,1,2) do if "!vrel:~-1!"==" " set "vrel=!vrel:~0,-1!"
+						for /l %%l in (1,1,2) do if "!vrel:~0,1!"==" " set "vrel=!vrel:~1!"
+	
+						rem Create the relative destination path from source path
+						if not "!vrel!"=="" set "vrel=%%~dpa"
+	
 if not "!vdeb!"=="" echo     vrel=!vrel!
 if not "!vdeb!"=="" echo     msrc=!msrc!
 if not "!vdeb!"=="" echo     mdst=!mdst!
-
-					set "vrel=!vrel:/=\!"
-					if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
-					call set "vrel=%%vrel:!msrc!=!mdst!%%"
-
+	
+						set "vrel=!vrel:/=\!"
+						if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
+						call set "vrel=%%vrel:!msrc!=!mdst!%%"
+	
 if not "!vdeb!"=="" echo     Checking if file is newer... %clog%
-
-					rem File to process flag
-					set "vchk="
-
-					rem Check if the source file is newer than destination file
-					set "vobj="
-					if not "!mobj!"=="" (
-						set "vrem=%%~na.!mobj!"
-						rem Try in destination folder first
-						set "vobj=!mdst!\!vrem!"
-						rem Try in relative folder next
-						if not exist "!vobj!" set "vobj=!vrel!\!vrem!"
-						if exist "!vobj!" (
-							attrib +r "!vobj!"
-							Rem Copy on destination file only if more recent
-rem							xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
-							robocopy "%%a" "!vobj" /xo 1>nul 2>nul
-							rem If more recent, fails due to write protection
-							if not errorlevel 0 set "vchk=1"
-							attrib -r "!vobj!"
-						) else (
-							rem No object file found? Objection! Generate it...
-							set "vchk=1"
-						)
-					) else (
-						rem Execute even if no object file defined
-						set "vchk=1"
-					)
-
-if not "!vdeb!"=="" echo     Checking file dependencies... %clog%
-
-					rem Check file dependencies (can be quite long, sadly)
-					set "vdep="
-					rem Has been currently disabled due to poor xcopy performance
-if not "!mdep!"=="TOTO" if exist "!vobj!" if not "!mdep!"=="" (
-						rem Try in destination folder first
-						set "vdep=!mdst!\%%~na.!mdep!"
-						rem Try in relative folder next
-						if not exist "!vdep!" set "vdep=!vrel!\%%~na.!mdep!"
-						if exist "!vdep!" (
-							attrib +r "!vobj!"
-							for /f "delims=!" %%b in (!vdep!) do (
-								rem Get the dependency line
-								set "vtst=%%b"
-								rem Parse dependency line to keep only the dependency file path
-								call set "vtst=%%vtst:!vrem!: =%%"
+	
+						rem File to process flag
+						set "vchk="
+	
+						rem Check if the source file is newer than destination file
+						set "vobj="
+						if not "!mobj!"=="" (
+							set "vrem=%%~na.!mobj!"
+							rem Try in destination folder first
+							set "vobj=!mdst!\!vrem!"
+							rem Try in relative folder next
+							if not exist "!vobj!" set "vobj=!vrel!\!vrem!"
+							if exist "!vobj!" (
+								attrib +r "!vobj!"
 								Rem Copy on destination file only if more recent
-rem								xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
-								robocopy "!vtst!" "!vobj!" /xo 1>nul 2>nul
+rem								xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
+								robocopy "%%a" "!vobj" /xo 1>nul 2>nul
 								rem If more recent, fails due to write protection
 								if not errorlevel 0 set "vchk=1"
+								attrib -r "!vobj!"
+							) else (
+								rem No object file found? Objection! Generate it...
+								set "vchk=1"
 							)
-							attrib -r "!vobj!"
 						) else (
-							rem No dependency file? Well, misconfiguration maybe...
+							rem Execute even if no object file defined
 							set "vchk=1"
 						)
-					)
-
-					rem If destination file absent or source file more recent
-					if not "!vchk!"=="" (
-						rem Start the process on the first unlocked CPU
-						if !csrt! lss !mcpu! (
-							set /a "csrt+=1"
-							set /a "cnxt=csrt"
-						) else (
-							call :waitcpu
-						)
-						del "%lcpu%.!cnxt!" /q 1>nul 2>nul
-
-if not "!vdeb!"=="" echo       Adapt destination file... %clog%
-
-						rem Adapt destination link file if found
-						if not "%%i"=="LNK_" if not "!mlnk!"=="" (
-							set "vcmd=!mlnk!"
-							rem Pass the file list only if used (try to avoid the 8191 bytes bug)
-							if not "!mlnk!"=="!mlnk:$[LIST]=!" (
-								call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
+	
+if not "!vdeb!"=="" echo     Checking file dependencies... %clog%
+	
+						rem Check file dependencies (can be quite long, sadly)
+						set "vdep="
+						rem Has been currently disabled due to poor xcopy performance
+if not "!mdep!"=="TOTO" if exist "!vobj!" if not "!mdep!"=="" (
+							rem Try in destination folder first
+							set "vdep=!mdst!\%%~na.!mdep!"
+							rem Try in relative folder next
+							if not exist "!vdep!" set "vdep=!vrel!\%%~na.!mdep!"
+							if exist "!vdep!" (
+								attrib +r "!vobj!"
+								for /f "delims=!" %%b in (!vdep!) do (
+									rem Get the dependency line
+									set "vtst=%%b"
+									rem Parse dependency line to keep only the dependency file path
+									call set "vtst=%%vtst:!vrem!: =%%"
+									Rem Copy on destination file only if more recent
+rem									xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
+									robocopy "!vtst!" "!vobj!" /xo 1>nul 2>nul
+									rem If more recent, fails due to write protection
+									if not errorlevel 0 set "vchk=1"
+								)
+								attrib -r "!vobj!"
 							) else (
-								call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" ""
+								rem No dependency file? Well, misconfiguration maybe...
+								set "vchk=1"
 							)
-							set "vcmd=!pcmd!"
-							echo !vcmd!>>"%vlnk%.0"
 						)
-
-if not "!vdeb!"=="" echo       Create argument list... %clog%
-
-rem  echo vcmd1="!vcmd!"
-
-						if "!mvia!"=="" (
-							rem Get the clean command line
-rem  echo vtmp3="!vtmp!"
-							if not "!vtmp!"=="" (
-rem  echo Do it :/
-								set "vcmd=!vtmp!"
-								rem Pass the file list only if used (try to avoid the 8192 bytes bug)
-								if not "!vtmp!"=="!vtmp:$[LIST]=!" (
+	
+						rem If destination file absent or source file more recent
+						if not "!vchk!"=="" (
+							rem Start the process on the first unlocked CPU
+							if !csrt! lss !mcpu! (
+								set /a "csrt+=1"
+								set /a "cnxt=csrt"
+							) else (
+								call :waitcpu
+							)
+							del "%lcpu%.!cnxt!" /q 1>nul 2>nul
+	
+if not "!vdeb!"=="" echo       Adapt destination file... %clog%
+	
+							rem Adapt destination link file if found
+							if not "%%i"=="LNK_" if not "!mlnk!"=="" (
+								set "vcmd=!mlnk!"
+								rem Pass the file list only if used (try to avoid the 8191 bytes bug)
+								if not "!mlnk!"=="!mlnk:$[LIST]=!" (
 									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
 								) else (
 									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" ""
 								)
 								set "vcmd=!pcmd!"
+								echo !vcmd!>>"%vlnk%.0"
 							)
+	
+if not "!vdeb!"=="" echo       Create argument list... %clog%
+	
+rem  echo vcmd1="!vcmd!"
+	
+							if "!mvia!"=="" (
+								rem Get the clean command line
+rem  echo vtmp3="!vtmp!"
+								if not "!vtmp!"=="" (
+rem  echo Do it :/
+									set "vcmd=!vtmp!"
+									rem Pass the file list only if used (try to avoid the 8192 bytes bug)
+									if not "!vtmp!"=="!vtmp:$[LIST]=!" (
+										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
+									) else (
+										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" ""
+									)
+									set "vcmd=!pcmd!"
+								)
 rem  echo vcmd2="!vcmd!"
-						) else (
-							rem Del the via file
-							del "%lvia%.!cnxt!" /q 1>nul 2>nul
-
-							rem Adapt the via file
-							if exist "%vsrt%.%%i.via" for /f "delims=!" %%b in (%vsrt%.%%i.via) do (
-								rem Adapt the via line and store it
-								set "vcmd=%%b"
-								call :cleanvcmd && set "vcmd=!pcmd!"
-								if "!vcmd!"=="$[LIST]" (
-									rem Copy the list of source files if requested
-									if "%%i"=="LNK_" (
-										rem If a destination link files list exists, use it for linking
-										if exist "%vlnk%.0" (
-											rem Linking requires the destination link files list
-											type "%vlnk%.0" >>"%lvia%.!cnxt!"
+							) else (
+								rem Del the via file
+								del "%lvia%.!cnxt!" /q 1>nul 2>nul
+	
+								rem Adapt the via file
+								if exist "%vsrt%.%%i.via" for /f "delims=!" %%b in (%vsrt%.%%i.via) do (
+									rem Adapt the via line and store it
+									set "vcmd=%%b"
+									call :cleanvcmd && set "vcmd=!pcmd!"
+									if "!vcmd!"=="$[LIST]" (
+										rem Copy the list of source files if requested
+										if "%%i"=="LNK_" (
+											rem If a destination link files list exists, use it for linking
+											if exist "%vlnk%.0" (
+												rem Linking requires the destination link files list
+												type "%vlnk%.0" >>"%lvia%.!cnxt!"
+											) else (
+												rem Linking requires the original source files list
+												type "%vsrt%.%%i.0" >>"%lvia%.!cnxt!"
+											)
 										) else (
-											rem Linking requires the original source files list
-											type "%vsrt%.%%i.0" >>"%lvia%.!cnxt!"
+											type "%vsrt%.%%i.1" >>"%lvia%.!cnxt!"
 										)
 									) else (
-										type "%vsrt%.%%i.1" >>"%lvia%.!cnxt!"
+										rem Adapt the command-line in !vcmd!
+										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "" && set "vcmd=!pcmd!"
+										echo:!vcmd!>>"%lvia%.!cnxt!"
 									)
-								) else (
-									rem Adapt the command-line in !vcmd!
-									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "" && set "vcmd=!pcmd!"
-									echo:!vcmd!>>"%lvia%.!cnxt!"
 								)
+	
+								rem Set the via file
+								set "vcmd=!mvia!"%lvia%.!cnxt!""
 							)
-
-							rem Set the via file
-							set "vcmd=!mvia!"%lvia%.!cnxt!""
-						)
-
+	
 if not "!vdeb!"=="" echo       Process file... %clog%
-
-						rem Keep the expanded command line for debugging purpose
-						echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
-						if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.2"
-
-						rem Display the file being processed
-						set "mrel=%%a"
-						call set "mrel=%%mrel:!msrc!=.%%"
-						echo   !mrel! %clog%
-
-						rem Log the executed command line (in case of lock conflict)
-						echo !vexe! !vcmd!>>"%vsrt%.%%i.3"
-						if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.3"
-
+	
+							rem Keep the expanded command line for debugging purpose
+							echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
+							if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.2"
+	
+							rem Display the file being processed
+							set "mrel=%%a"
+							call set "mrel=%%mrel:!msrc!=.%%"
+							echo   !mrel! %clog%
+	
+							rem Log the executed command line (in case of lock conflict)
+							echo !vexe! !vcmd!>>"%vsrt%.%%i.3"
+							if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.3"
+	
 rem  echo vcmd3="!vcmd!"
-
-						rem Remove bad formated argument
-						if "!vcmd!"=="^" =^"" (
-rem							set "vcmd="
-						)
-
-						rem The 'affinity' parameter BITFIELD select the CPU
-						set /a "crun=!cnxt!-1"
-						call :tohex !crun!
-
-						rem If command line not started with a quote, add them
-rem						if not "!vexe:~0,1!"==^"^"^" set vexe="!vexe!"
-
-						rem If executable path is empty, use current one
-						if "!mdst!"=="" set "mdst=%CD%"
-
-						rem Direct execution
-						start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
-
-						rem Remote batch execution to catch errorlevel exit code
+	
+							rem Remove bad formated argument
+							if "!vcmd!"=="^" =^"" (
+rem								set "vcmd="
+							)
+	
+							rem The 'affinity' parameter BITFIELD select the CPU
+							set /a "crun=!cnxt!-1"
+							call :tohex !crun!
+	
+							rem If command line not started with a quote, add them
+rem							if not "!vexe:~0,1!"==^"^"^" set vexe="!vexe!"
+	
+							rem If executable path is empty, use current one
+							if "!mdst!"=="" set "mdst=%CD%"
+	
+							rem Direct execution
+							start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
+	
+							rem Remote batch execution to catch errorlevel exit code
 rem FIXME: currently batch file error loggers unused (not enough parameters)
-						rem If the !vcmd! argument chain gets exploded and unresolved, use the via option
-rem						start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 "%lbat%.!cnxt!" "!vexe!" "!vcmd!"
-					)
-
-					rem Check exit code
-					call :waiterr
-					if "!verr!" gtr "0" (
-						echo Errorlevel=!verr! %clog%
-rem						exit /b !verr!
+							rem If the !vcmd! argument chain gets exploded and unresolved, use the via option
+rem							start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 "%lbat%.!cnxt!" "!vexe!" "!vcmd!"
+						)
+	
+	
+						rem Check exit code
+						call :waiterr
+						if "!verr!" gtr "0" (
+							echo Errorlevel=!verr! %clog%
+rem							exit /b !verr!
+						)
 					)
 				)
+				rem TOTO
 			)
 
 			rem Wait for all processes to exit
