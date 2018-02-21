@@ -1223,7 +1223,8 @@ rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
 rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
 		)
 		(call ) 9>"%%l" || (
-			ping /n 1 ::1 1>nul 2>nul
+			rem Set timing to at least '2' if you have weird message logging
+			ping /n 2 ::1 1>nul 2>nul
 			goto :waitall
 		)
 	) 2>nul
