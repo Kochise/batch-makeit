@@ -54,11 +54,14 @@ rem %var% will access the parsed value and !var! the run-time value
 rem Beware: you'll scratch your head several times with this shit
 setlocal enabledelayedexpansion
 
+rem	@set "odir=%cd%"
+rem	cd %~dp0
+
 rem Set this variable to get some fancy debug output
 set "vdeb="
 
 rem Set this variable to get more iterative pass
-set /a "vpas=3"
+set /a "vpas=4"
 
 rem Convert current time and date in a more usable format
 for /f "tokens=1,2,3,4 delims=/ " %%a in ("%date%") do set "fdate=%%d%%c%%b%%a"
@@ -331,7 +334,7 @@ if not "!vdeb!"=="" echo   --read line vinc - !vinc!
 								rem Replace token with resolved and expanded path (~f) parameter
 								call set "vtmp=%%vtmp:${%%k}=!pexp!%%"
 								rem Ensure backslash in path (because 'dir' produces such)
-								set "vtmp=!vtmp:/=\!"
+rem								set "vtmp=!vtmp:/=\!"
 							)
 						)
 
@@ -417,7 +420,7 @@ for %%i in (%vpre%) do (
 				set "vtmp=!vtmp:~1!"
 
 				rem Try to resolve embedded path (tricky if inside an argument)
-				set "vtmp=!vtmp:/=\!"
+rem				set "vtmp=!vtmp:/=\!"
 				if not "!vtmp!"=="!vtmp:..\=!" (
 rem					call :expandpath "!vtmp!" && set "vtmp=!pexp!"
 				)
@@ -808,7 +811,7 @@ if not "!vdeb!"=="" echo     vrel=!vrel!
 if not "!vdeb!"=="" echo     msrc=!msrc!
 if not "!vdeb!"=="" echo     mdst=!mdst!
 	
-						set "vrel=!vrel:/=\!"
+rem						set "vrel=!vrel:/=\!"
 						if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
 						call set "vrel=%%vrel:!msrc!=!mdst!%%"
 	
@@ -1079,6 +1082,8 @@ rem	del "%vdst%" /s /f /q 1>nul 2>nul
 	echo: %clog%
 	if not "%vlog%"=="nolog" if not "%vlog%"=="nul" echo Get the %vtxt% log into !vlog:%vrel%=.\! !
 
+rem cd "%odir%"
+
 	rem Gogo gadget au poing
 	goto end
 
@@ -1202,6 +1207,7 @@ goto :eof
 				set "verr=%perr%"
 			)
 		)
+		ping /n 0 ::1 1>nul 2>nul
 		del "%%l" /q 1>nul 2>nul
 	)
 goto :eof
@@ -1209,7 +1215,8 @@ goto :eof
 :waitall
 	rem Wait remaining CPU to unlock
 rem	echo - - - START - - - - - - - - - - - - -%clog%
-rem	ping /n 0 ::1 1>nul 2>nul
+	rem Set timing to at least '2' if you have weird message logging
+	ping /n 1 ::1 1>nul 2>nul
 	for %%l in ("%lcpu%*") do (
 		call :expandsize "%%l"
 		if not "!pexp!"=="0" (
@@ -1218,13 +1225,12 @@ rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
 			type "%%l" %clog%
 			rem Flush file
 			ping /n 0 ::1 1>nul 2>nul
-			del "%%l" /q 1>nul 2>nul
-			echo>"%%l"
+rem			del "%%l" /q 1>nul 2>nul
+rem			echo>"%%l"
 rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
 		)
 		(call ) 9>"%%l" || (
-			rem Set timing to at least '2' if you have weird message logging
-			ping /n 2 ::1 1>nul 2>nul
+rem			ping /n 1 ::1 1>nul 2>nul
 			goto :waitall
 		)
 	) 2>nul
@@ -1234,7 +1240,7 @@ goto :eof
 :waitcpu
 	rem Don't try to understand this, I was on coke... cake, I was on cake. It's not a lie!
 rem	echo = = = START = = = = = = = = = = = = =%clog%
-rem	ping /n 0 ::1 1>nul 2>nul
+	ping /n 0 ::1 1>nul 2>nul
 	for /l %%c in (%cmin%,1,!mcpu!) do (
 		if not defined cexe%%c if exist "%lcpu%.%%c" (
 			call :expandsize "%lcpu%.%%c"
@@ -1244,8 +1250,8 @@ rem				echo = = = "%lcpu%.%%c" = = = = = = = = = = = = =%clog%
 				type "%lcpu%.%%c" %clog%
 				rem Flush file
 				ping /n 0 ::1 1>nul 2>nul
-				del "%lcpu%.%%c" /q 1>nul 2>nul
-				echo>"%lcpu%.%%c"
+rem				del "%lcpu%.%%c" /q 1>nul 2>nul
+rem				echo>"%lcpu%.%%c"
 rem				echo = = = "%lcpu%.%%c" = = = = = = = = = = = = =%clog%
 			)
 			if defined mrun (
