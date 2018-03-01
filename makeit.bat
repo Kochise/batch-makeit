@@ -1,6 +1,6 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH v2.5 2013-2018
+rem Extended Batch Makefile by David KOCH v2.6 2013-2018
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument	%0	%1		%2			%3					%4
 rem					|		|			|					|
@@ -122,6 +122,14 @@ set "vslv=%vdst%\%2.solv"
 set "vsrt=%vdst%\%2.sort"
 set "vdir=/B /A:-D /ON /S"
 
+rem Set default tags (GCC style), change them with LOC_DEF and LOC_INC
+set "cdef=-D"
+set "cinc=-I"
+
+rem Change default helpers
+set "quiet=1>nul 2>nul"
+set "fquiet=/f /q 1>nul 2>nul"
+
 rem Create the folder (because Windows cannot do it automatically when writing a file)
 mkdir "%vdst%" 2>nul
 
@@ -181,7 +189,7 @@ rem Resolve include files
 echo Resolving static include files... %clog%
 
 rem Multi-level include, aggregate files up to 20% cooler
-copy /y "%vsrc%" "%vslv%.0" 1>nul 2>nul
+copy /y "%vsrc%" "%vslv%.0" %quiet%
 
 set "vtag=INCLUDE="
 
@@ -193,8 +201,8 @@ rem	echo   Inclusion level %%h/%vpas% %clog%
 		findstr /b "%vtag%" "%vslv%.0" >"%vslv%.1"
 		if "0"=="!errorlevel!" (
 			rem Save original file before recreation
-			copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
-			del "%vslv%.0" /q 1>nul 2>nul
+			copy /y "%vslv%.0" "%vslv%.3" %quiet%
+			del "%vslv%.0" %fquiet%
 
 			rem Read original file (include blank lines through 'findstr')
 			for /f "tokens=1* delims=:" %%i in ('findstr /n "^" "%vslv%.3"') do (
@@ -231,8 +239,8 @@ if "0"=="!errorlevel!" (
 	echo Adding config name to LOC_DST path... %clog%
 
 	rem Save original file before recreation
-	copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
-	del "%vslv%.0" /q 1>nul 2>nul
+	copy /y "%vslv%.0" "%vslv%.3" %quiet%
+	del "%vslv%.0" %fquiet%
 
 	rem Read original file (include blank lines through 'findstr')
 	for /f "tokens=1* delims=:" %%i in ('findstr /n "^" "%vslv%.3"') do (
@@ -288,8 +296,8 @@ rem	echo   Resolution level %%h/%vpas% %clog%
 		findstr /n "%vtag%" "%vslv%.0" >"%vslv%.1"
 		if "0"=="!errorlevel!" (
 			rem Save original file before recreation
-			copy /y "%vslv%.0" "%vslv%.3" 1>nul 2>nul
-			del "%vslv%.0" /q 1>nul 2>nul
+			copy /y "%vslv%.0" "%vslv%.3" %quiet%
+			del "%vslv%.0" %fquiet%
 
 			rem Start line number
 			set /a "adst=0"
@@ -302,7 +310,7 @@ if not "!vdeb!"=="" echo --read line num - %%i
 if not "!vdeb!"=="" echo --read line str - %%j
 					rem Copy previous lines
 					call :copyline !adst! %%i "%vslv%.3" "%vslv%.0"
-					
+
 					rem Each token found
 					for /f "tokens=2 delims={}" %%k in ("%%j") do (
 						rem Read second token ('_{%%k}%%l' = '_{tag}_')
@@ -316,7 +324,7 @@ if not "!vdeb!"=="" echo --read line str - %%j
 
 						rem Find first line
 						call :findline "tokens=1,* delims==" "^%%k=" "%vslv%.3"
-						
+
 						rem Look for the resolved parameter
 						if not "!plin!"=="" (
 							rem Check if it can be solved as a path
@@ -362,7 +370,7 @@ rem goto :eof
 
 rem You can compare "%vslv%.0" with "%vslv%.3" to check the variable expansion
 rem sort "%vslv%.0" >"%vsrt%.0"
-copy /y "%vslv%.0" "%vsrt%.0" 1>nul 2>nul
+copy /y "%vslv%.0" "%vsrt%.0" %quiet%
 
 rem Parse and execute commands
 echo Executing make file... %clog%
@@ -476,19 +484,25 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
 				if "%%j"=="XPY" set "mxpy=!mxpy! !vtmp!"
 				if "%%j"=="CPY" set "mcpy=!mcpy! !vtmp!"
 
-				rem Via-method compatible arguments (accumulated)
-				if "!mvia!"=="" (
-					if "%%j"=="ARG" set "marg=!marg! !vtmp!"
-					if "%%j"=="DEF" set "mdef=!mdef! -D!vtmp!"
-					if "%%j"=="INC" set "minc=!minc! -I^"!vtmp!^""
-					if "%%j"=="LIB" set "mlib=!mlib! !vtmp!"
-					if "%%j"=="TMP" set "mtmp=!mtmp! !vtmp!"
+				if "%%i"=="LOC_" (
+					rem Change default tags
+					if "%%j"=="DEF" set "cdef=!vtmp!"
+					if "%%j"=="INC" set "cinc=!vtmp!"
 				) else (
-					if "%%j"=="ARG" echo !vtmp!>>"%vsrt%.%%i.arg"
-					if "%%j"=="DEF" echo -D!vtmp!>>"%vsrt%.%%i.def"
-					if "%%j"=="INC" echo -I^"!vtmp!^"">>"%vsrt%.%%i.inc"
-					if "%%j"=="LIB" echo !vtmp!>>"%vsrt%.%%i.lib"
-					if "%%j"=="TMP" echo !vtmp!>>"%vsrt%.%%i.tmp"
+					rem Via-method compatible arguments (accumulated)
+					if "!mvia!"=="" (
+						if "%%j"=="ARG" set "marg=!marg! !vtmp!"
+						if "%%j"=="DEF" set "mdef=!mdef! !cdef!^"!vtmp!^""
+						if "%%j"=="INC" set "minc=!minc! !cinc!^"!vtmp!^""
+						if "%%j"=="LIB" set "mlib=!mlib! !vtmp!"
+						if "%%j"=="TMP" set "mtmp=!mtmp! !vtmp!"
+					) else (
+						if "%%j"=="ARG" echo !vtmp!>>"%vsrt%.%%i.arg"
+						if "%%j"=="DEF" echo !cdef!^"!vtmp!^"">>"%vsrt%.%%i.def"
+						if "%%j"=="INC" echo !cinc!^"!vtmp!^"">>"%vsrt%.%%i.inc"
+						if "%%j"=="LIB" echo !vtmp!>>"%vsrt%.%%i.lib"
+						if "%%j"=="TMP" echo !vtmp!>>"%vsrt%.%%i.tmp"
+					)
 				)
 			)
 		)
@@ -588,9 +602,9 @@ if not "!vdeb!"==""		echo mdst=!mdst!
 						rem If not self directory
 						if not "!msrc!"=="!mdst!" (
 							echo  Copying source folder tree... %clog%
-rem							xcopy "!msrc!" "!mdst!" /e /t /y /q 1>nul 2>nul
+rem							xcopy "!msrc!" "!mdst!" /e /t /y /q %quiet%
 							rem Xcopy can produce an 'insufficient memory' error
-							robocopy "!msrc!" "!mdst!" /e /xf * 1>nul 2>nul
+							robocopy "!msrc!" "!mdst!" /e /xf * %quiet%
 						)
 					)
 
@@ -601,7 +615,7 @@ if not "!vdeb!"=="" echo mdel=!mdel!
 						echo  Deleting old destination files... %clog%
 						for %%j in (!mdel!) do (
 if not "!vdeb!"=="" echo del=!mdst!\*.%%j
-							del /s /q "!mdst!\*.%%j" 1>nul 2>nul
+							del "!mdst!\*.%%j" /s %fquiet%
 						)
 					)
 
@@ -612,8 +626,8 @@ if not "!vdeb!"=="" echo mxpy=!mxpy!
 						echo  Xcopying source files... %clog%
 						for %%j in (!mxpy!) do (
 if not "!vdeb!"=="" echo xcopy=!msrc!\*.%%j
-							xcopy "!msrc!\*.%%j" "!mdst!" /s /i /y /q 1>nul 2>nul
-rem							robocopy "!msrc!\*.%%j" "!mdst!" /s 1>nul 2>nul
+							xcopy "!msrc!\*.%%j" "!mdst!" /s /i /y /q %quiet%
+rem							robocopy "!msrc!\*.%%j" "!mdst!" /s %quiet%
 						)
 					)
 
@@ -625,7 +639,7 @@ rem							robocopy "!msrc!\*.%%j" "!mdst!" /s 1>nul 2>nul
 						call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "" && set "mcpy=!pcmd!"
 if not "!vdeb!"=="" echo mcpy=!mcpy!
 						for %%j in (!mcpy!) do (
-							if exist "%%j" copy /y "%%j" "!mdst!" 1>nul 2>nul
+							if exist "%%j" copy /y "%%j" "!mdst!" %quiet%
 						)
 					)
 				)
@@ -711,7 +725,7 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
 
 				rem If linker and destination link files list present
 				if "%%i"=="LNK_" if not "!mlnk!"=="" if exist %vlnk%.0 (
-rem					copy "%vlnk%.0" "%vsrt%.%%i.0" /y 1>nul 2>nul
+rem					copy "%vlnk%.0" "%vsrt%.%%i.0" /y %quiet%
 					findstr "!mlnk!" "%vlnk%.0" >"%vsrt%.%%i.0"
 				)
 
@@ -727,18 +741,19 @@ if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
 					rem The 'findstr' command is buggy, it never excludes only /xxx/
 					if "!mexc!"=="" (
 						rem Keep all files
-						copy "%vsrt%.%%i.0" "%vsrt%.%%i.4" /y 1>nul 2>nul
+						copy "%vsrt%.%%i.0" "%vsrt%.%%i.4" /y %quiet%
 					) else (
 						rem Remove excluded files (bug: never '/xxx/', at least 'dummy /xxx/')
 						findstr /i /v "!mexc!" "%vsrt%.%%i.0" >"%vsrt%.%%i.4"
 						if not "!mbut!"=="" (
 							rem Add anti excluded files
-							findstr /i "!mbut!" "%vsrt%.%%i.0" >>"%vsrt%.%%i.5"
+							findstr /i "!mbut!" "%vsrt%.%%i.0" >>"%vsrt%.%%i.4"
 							rem Sort remaining files
-rem							sort "%vsrt%.%%i.4" >"%vsrt%.%%i.5"
+							sort "%vsrt%.%%i.4" >"%vsrt%.%%i.5"
+rem							copy "%vsrt%.%%i.4" "%vsrt%.%%i.5" /y %quiet%
 							rem Remove duplicate lines
 							if exist %vsrt%.%%i.5 (
-								del "%vsrt%.%%i.4" /q 1>nul 2>nul
+								del "%vsrt%.%%i.4" %fquiet%
 								for /f "delims=!" %%a in (%vsrt%.%%i.5) do (
 									if not "%vdup%"=="%%a" (
 										set "vdup=%%a"
@@ -757,8 +772,8 @@ if not "!vdeb!"=="" echo     Listing remaining files... %clog%
 						if not "%vexc%"=="" (
 rem							for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
 							findstr /i /v /g:"%vexc%" "%vsrt%.%%i.4" >"%vsrt%.%%i.5"
-							copy "%vsrt%.%%i.5" "%vsrt%.%%i.4" /y 1>nul 2>nul
-							del "%vsrt%.%%i.5" /q 1>nul 2>nul
+							copy "%vsrt%.%%i.5" "%vsrt%.%%i.4" /y %quiet%
+							del "%vsrt%.%%i.5" %fquiet%
 						)
 
 						for /f "delims=!" %%a in (%vsrt%.%%i.4) do (
@@ -773,7 +788,7 @@ rem							for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
 if not "!vdeb!"=="" echo     Remove remaining files... %clog%
 
 					rem Remove the remaining files list
-					del "%vsrt%.%%i.4" /q 1>nul 2>nul
+					del "%vsrt%.%%i.4" %fquiet%
 rem					if not "!vlst!"=="" echo !vlst! >"%vsrt%.%%i.4"
 				)
 
@@ -793,33 +808,33 @@ if not "!vdeb!"=="" echo   File list finished... %clog%
 				if exist !vexe! if exist "%vsrt%.%%i.1" (
 					rem Display here a false message because the real work is done in the loop below
 					if not "!mdep!"=="" echo  Checking dependencies... %clog%
-	
+
 if not "!vdeb!"=="" echo   Executing command on each listed file... %clog%
-	
+
 					rem Now execute the commands for each source files found
 					for /f "delims=!" %%a in (%vsrt%.%%i.1) do (
 						set "vrel=%%a"
-	
+
 						rem Remove trailing and leading spaces
 						for /l %%l in (1,1,2) do if "!vrel:~-1!"==" " set "vrel=!vrel:~0,-1!"
 						for /l %%l in (1,1,2) do if "!vrel:~0,1!"==" " set "vrel=!vrel:~1!"
-	
+
 						rem Create the relative destination path from source path
 						if not "!vrel!"=="" set "vrel=%%~dpa"
-	
+
 if not "!vdeb!"=="" echo     vrel=!vrel!
 if not "!vdeb!"=="" echo     msrc=!msrc!
 if not "!vdeb!"=="" echo     mdst=!mdst!
-	
+
 rem						set "vrel=!vrel:/=\!"
 						if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
 						call set "vrel=%%vrel:!msrc!=!mdst!%%"
-	
+
 if not "!vdeb!"=="" echo     Checking if file is newer... %clog%
-	
+
 						rem File to process flag
 						set "vchk="
-	
+
 						rem Check if the source file is newer than destination file
 						set "vobj="
 						if not "!mobj!"=="" (
@@ -831,8 +846,8 @@ if not "!vdeb!"=="" echo     Checking if file is newer... %clog%
 							if exist "!vobj!" (
 								attrib +r "!vobj!"
 								Rem Copy on destination file only if more recent
-rem								xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
-								robocopy "%%a" "!vobj" /xo 1>nul 2>nul
+rem								xcopy "%%a" "!vobj!" /d /y %quiet%
+								robocopy "%%a" "!vobj" /xo %quiet%
 								rem If more recent, fails due to write protection
 								if not errorlevel 0 set "vchk=1"
 								attrib -r "!vobj!"
@@ -844,9 +859,9 @@ rem								xcopy "%%a" "!vobj!" /d /y 1>nul 2>nul
 							rem Execute even if no object file defined
 							set "vchk=1"
 						)
-	
+
 if not "!vdeb!"=="" echo     Checking file dependencies... %clog%
-	
+
 						rem Check file dependencies (can be quite long, sadly)
 						set "vdep="
 						rem Has been currently disabled due to poor xcopy performance
@@ -863,8 +878,8 @@ if not "!mdep!"=="TOTO" if exist "!vobj!" if not "!mdep!"=="" (
 									rem Parse dependency line to keep only the dependency file path
 									call set "vtst=%%vtst:!vrem!: =%%"
 									Rem Copy on destination file only if more recent
-rem									xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
-									robocopy "!vtst!" "!vobj!" /xo 1>nul 2>nul
+rem									xcopy "!vtst!" "!vobj!" /d /y %quiet%
+									robocopy "!vtst!" "!vobj!" /xo %quiet%
 									rem If more recent, fails due to write protection
 									if not errorlevel 0 set "vchk=1"
 								)
@@ -874,7 +889,7 @@ rem									xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
 								set "vchk=1"
 							)
 						)
-	
+
 						rem If destination file absent or source file more recent
 						if not "!vchk!"=="" (
 							rem Start the process on the first unlocked CPU
@@ -884,10 +899,10 @@ rem									xcopy "!vtst!" "!vobj!" /d /y 1>nul 2>nul
 							) else (
 								call :waitcpu
 							)
-							del "%lcpu%.!cnxt!" /q 1>nul 2>nul
-	
+							del "%lcpu%.!cnxt!" %fquiet%
+
 if not "!vdeb!"=="" echo       Adapt destination file... %clog%
-	
+
 							rem Adapt destination link file if found
 							if not "%%i"=="LNK_" if not "!mlnk!"=="" (
 								set "vcmd=!mlnk!"
@@ -900,11 +915,11 @@ if not "!vdeb!"=="" echo       Adapt destination file... %clog%
 								set "vcmd=!pcmd!"
 								echo !vcmd!>>"%vlnk%.0"
 							)
-	
+
 if not "!vdeb!"=="" echo       Create argument list... %clog%
-	
+
 rem  echo vcmd1="!vcmd!"
-	
+
 							if "!mvia!"=="" (
 								rem Get the clean command line
 rem  echo vtmp3="!vtmp!"
@@ -922,8 +937,8 @@ rem  echo Do it :/
 rem  echo vcmd2="!vcmd!"
 							) else (
 								rem Del the via file
-								del "%lvia%.!cnxt!" /q 1>nul 2>nul
-	
+								del "%lvia%.!cnxt!" %fquiet%
+
 								rem Adapt the via file
 								if exist "%vsrt%.%%i.via" for /f "delims=!" %%b in (%vsrt%.%%i.via) do (
 									rem Adapt the via line and store it
@@ -949,53 +964,52 @@ rem  echo vcmd2="!vcmd!"
 										echo:!vcmd!>>"%lvia%.!cnxt!"
 									)
 								)
-	
+
 								rem Set the via file
 								set "vcmd=!mvia!"%lvia%.!cnxt!""
 							)
-	
+
 if not "!vdeb!"=="" echo       Process file... %clog%
-	
+
 							rem Keep the expanded command line for debugging purpose
 							echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
 							if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.2"
-	
+
 							rem Display the file being processed
 							set "mrel=%%a"
 							call set "mrel=%%mrel:!msrc!=.%%"
 							echo   !mrel! %clog%
-	
+
 							rem Log the executed command line (in case of lock conflict)
 							echo !vexe! !vcmd!>>"%vsrt%.%%i.3"
 							if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.3"
-	
+
 rem  echo vcmd3="!vcmd!"
-	
+
 							rem Remove bad formated argument
 							if "!vcmd!"=="^" =^"" (
 rem								set "vcmd="
 							)
-	
+
 							rem The 'affinity' parameter BITFIELD select the CPU
 							set /a "crun=!cnxt!-1"
 							call :tohex !crun!
-	
+
 							rem If command line not started with a quote, add them
 rem							if not "!vexe:~0,1!"==^"^"^" set vexe="!vexe!"
-	
+
 							rem If executable path is empty, use current one
 							if "!mdst!"=="" set "mdst=%CD%"
-	
+
 							rem Direct execution
 							start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
-	
+
 							rem Remote batch execution to catch errorlevel exit code
 rem FIXME: currently batch file error loggers unused (not enough parameters)
 							rem If the !vcmd! argument chain gets exploded and unresolved, use the via option
 rem							start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 "%lbat%.!cnxt!" "!vexe!" "!vcmd!"
 						)
-	
-	
+
 						rem Check exit code
 						call :waiterr
 						if "!verr!" gtr "0" (
@@ -1022,12 +1036,12 @@ rem				exit /b !verr!
 				set "mdup=!mdup:$[CONF]=%2!"
 				if not "!mdup!"=="!mdst!" (
 					mkdir "!mdup!" 2>nul
-					del "%vsrt%.%%i.6" /q 1>nul 2>nul
+					del "%vsrt%.%%i.6" /q %quiet%
 					if not "!mobj!"=="" dir "!mdst!\*.!mobj!" %vdir% >>"%vsrt%.%%i.6"
 					if not "!mbin!"=="" dir "!mdst!\*.!mbin!" %vdir% >>"%vsrt%.%%i.6"
 					if exist "%vsrt%.%%i.6" (
 rem						sort "%vsrt%.%%i.6" >"%vsrt%.%%i.5"
-						copy "%vsrt%.%%i.6" "%vsrt%.%%i.5" /y 1>nul 2>nul
+						copy "%vsrt%.%%i.6" "%vsrt%.%%i.5" /y %quiet%
 
 						rem Remove already duplicated files
 						findstr /i /v "!mdup!" "%vsrt%.%%i.5" >"%vsrt%.%%i.6"
@@ -1035,7 +1049,7 @@ if not "!vdeb!"=="" echo mdup=!mdup!
 						echo  Duplicating destination files... %clog%
 						if exist "%vsrt%.%%i.6" for /f "delims=!" %%a in (%vsrt%.%%i.6) do (
 if not "!vdeb!"=="" echo dup=%%a
-							copy "%%a" "!mdup!" /y 1>nul 2>nul
+							copy "%%a" "!mdup!" /y %quiet%
 						)
 					)
 				)
@@ -1051,7 +1065,7 @@ if not "!vdeb!"=="" echo dup=%%a
 
 					rem Backup step log into step report folder
 					if not "!mrpt!"=="" (
-						copy "!mlog!" "!mrpt!" /y 1>nul 2>nul
+						copy "!mlog!" "!mrpt!" /y %quiet%
 					)
 				)
 			)
@@ -1067,13 +1081,13 @@ set "mrun="
 
 :cleanup
 	rem Deleting CPU lock files
-	del "%lbat%*" /f /q 1>nul 2>nul
-	del "%lcpu%*" /f /q 1>nul 2>nul
-	del "%lerr%*" /f /q 1>nul 2>nul
-	del "%lvia%*" /f /q 1>nul 2>nul
+	del "%lbat%*" %fquiet%
+	del "%lcpu%*" %fquiet%
+	del "%lerr%*" %fquiet%
+	del "%lvia%*" %fquiet%
 
 	rem Deleting source files list, log files, command files, etc...
-rem	del "%vdst%" /s /f /q 1>nul 2>nul
+rem	del "%vdst%" /s %fquiet%
 
 	rem Expand again the relative path of the configuration file
 	set "vrel=%~dp2"
@@ -1119,7 +1133,7 @@ rem cd "%odir%"
 	if not "%vlog%"=="" if not "%vlog%"=="nolog" (
 		rem Backup build log into build report folder
 		if not "!vrpt!"=="" (
-			copy "%vlog%" "!vrpt!" /y 1>nul 2>nul
+			copy "%vlog%" "!vrpt!" /y %quiet%
 		)
 
 		if "%1"=="quick" start "" "%vlog%"
@@ -1207,8 +1221,8 @@ goto :eof
 				set "verr=%perr%"
 			)
 		)
-		ping /n 0 ::1 1>nul 2>nul
-		del "%%l" /q 1>nul 2>nul
+		ping /n 0 ::1 %quiet%
+		del "%%l" %fquiet%
 	)
 goto :eof
 
@@ -1216,7 +1230,7 @@ goto :eof
 	rem Wait remaining CPU to unlock
 rem	echo - - - START - - - - - - - - - - - - -%clog%
 	rem Set timing to at least '2' if you have weird message logging
-	ping /n 1 ::1 1>nul 2>nul
+	ping /n 2 ::1 %quiet%
 	for %%l in ("%lcpu%*") do (
 		call :expandsize "%%l"
 		if not "!pexp!"=="0" (
@@ -1224,13 +1238,13 @@ rem	echo - - - START - - - - - - - - - - - - -%clog%
 rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
 			type "%%l" %clog%
 			rem Flush file
-			ping /n 0 ::1 1>nul 2>nul
-rem			del "%%l" /q 1>nul 2>nul
+			ping /n 0 ::1 %quiet%
+			del "%%l" %fquiet%
 rem			echo>"%%l"
 rem			echo - - - "%%l" - - - - - - - - - - - - -%clog%
 		)
 		(call ) 9>"%%l" || (
-rem			ping /n 1 ::1 1>nul 2>nul
+rem			ping /n 1 ::1 %quiet%
 			goto :waitall
 		)
 	) 2>nul
@@ -1240,7 +1254,7 @@ goto :eof
 :waitcpu
 	rem Don't try to understand this, I was on coke... cake, I was on cake. It's not a lie!
 rem	echo = = = START = = = = = = = = = = = = =%clog%
-	ping /n 0 ::1 1>nul 2>nul
+rem	ping /n 0 ::1 %quiet%
 	for /l %%c in (%cmin%,1,!mcpu!) do (
 		if not defined cexe%%c if exist "%lcpu%.%%c" (
 			call :expandsize "%lcpu%.%%c"
@@ -1249,8 +1263,8 @@ rem	echo = = = START = = = = = = = = = = = = =%clog%
 rem				echo = = = "%lcpu%.%%c" = = = = = = = = = = = = =%clog%
 				type "%lcpu%.%%c" %clog%
 				rem Flush file
-				ping /n 0 ::1 1>nul 2>nul
-rem				del "%lcpu%.%%c" /q 1>nul 2>nul
+				ping /n 0 ::1 %quiet%
+				del "%lcpu%.%%c" %fquiet%
 rem				echo>"%lcpu%.%%c"
 rem				echo = = = "%lcpu%.%%c" = = = = = = = = = = = = =%clog%
 			)
@@ -1264,7 +1278,7 @@ rem				echo = = = "%lcpu%.%%c" = = = = = = = = = = = = =%clog%
 	) 2>nul
 
 	if %cend% lss %csrt% (
-		ping /n 1 ::1 1>nul 2>nul
+		ping /n 1 ::1 %quiet%
 		goto :waitcpu
 	)
 rem	echo = = = END = = = = = = = = = = = = =%clog%
