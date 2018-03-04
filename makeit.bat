@@ -1,6 +1,6 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH v2.6 2013-2018
+rem Extended Batch Makefile by David KOCH v2.7 2013-2018
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument	%0	%1		%2			%3					%4
 rem					|		|			|					|
@@ -34,7 +34,7 @@ rem				map		 - perform mapping analysis
 rem Todo list (Oh No! More Lemmings)
 rem Correct error management through batch files for multi-core compilation
 rem Try to synchronize output execution result with target execution message
-rem Add a LOG_CNF entry to give a default configuration file name (no ext file?)
+rem Add a xxx_PWD suffix to specify a execution directory other than current
 rem Convert to native, lua, shell, whatever less bogus and snappier execution time
 rem Praise the Lords...
 
@@ -93,7 +93,7 @@ if "%1"=="flash" set "vtxt=flashing"
 if "%1"=="run" set "vtxt=running"
 if "%1"=="map" set "vtxt=mapping"
 
-rem Set command prefix sequence
+rem Set command prefix sequence (default list)
 if "%1"=="all" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_ RUN_"
 if "%1"=="partial" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_ FLH_"
 if "%1"=="rebuild" set "vpre=CLN_ ASM_ PRE_ CPP_ LNK_ PST_"
@@ -109,7 +109,7 @@ if "%1"=="run" set "vpre=RUN_"
 if "%1"=="map" set "vpre=MAP_"
 
 rem Set argument list (currently supported suffixes)
-set "varg=REM EXE SRC DST RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC BUT DEL XPY CPY ARG DEF INC LIB TMP"
+set "varg=REM EXE PWD SRC DST RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC BUT DEL XPY CPY ARG DEF INC LIB TMP"
 
 rem Set default variables
 set "verr=0"
@@ -386,6 +386,7 @@ for %%i in (%vpre%) do (
 
 		set "mrem="
 		set "mexe="
+		set "mpwd="
 		set "msrc="
 		set "mdst="
 		set "mrpt="
@@ -450,6 +451,7 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
 
 				if "%%j"=="REM" set "mrem=!vtmp!"
 				if "%%j"=="EXE" set "mexe=!vtmp!"
+				if "%%j"=="PWD" set "mpwd=!vtmp!"
 				if "%%j"=="SRC" set "msrc=!vtmp!"
 				if "%%j"=="DST" set "mdst=!vtmp!"
 				if "%%j"=="RPT" set "mrpt=!vtmp!"
@@ -535,6 +537,7 @@ rem			set "mbut=!mbut:/=\!"
 
 		rem Remove the ending backslash of path
 		call :cleanpath "!mexe!" && set "mexe=!pcln!"
+		call :cleanpath "!mpwd!" && set "mpwd=!pcln!"
 		call :cleanpath "!msrc!" && set "msrc=!pcln!"
 		call :cleanpath "!mdst!" && set "mdst=!pcln!"
 		call :cleanpath "!mrpt!" && set "mrpt=!pcln!"
@@ -552,7 +555,7 @@ rem			set "mbut=!mbut:/=\!"
 		rem If no source path, switch to destination path
 		if "!msrc!"=="" if not "!mdst!"=="" set "msrc=!mdst!"
 
-		rem Command prefix to execute
+		rem Command prefix to execute (default list)
 		if not "!mexe!"=="" (
 			if "%%i"=="CLN_" echo Now cleaning... %clog%
 			if "%%i"=="ASM_" echo Now assembling... %clog%
