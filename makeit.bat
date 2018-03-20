@@ -109,7 +109,7 @@ if "%1"=="run" set "vpre=RUN_"
 if "%1"=="map" set "vpre=MAP_"
 
 rem Set argument list (currently supported suffixes)
-set "varg=REM EXE PWD SRC DST RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC BUT DEL XPY CPY ARG DEF INC LIB TMP"
+set "varg=REM EXE PWD SRC DST MOV RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC BUT DEL XPY CPY ARG DEF INC LIB TMP"
 
 rem Set default variables
 set "verr=0"
@@ -389,6 +389,7 @@ for %%i in (%vpre%) do (
 		set "mpwd="
 		set "msrc="
 		set "mdst="
+		set "mmov="
 		set "mrpt="
 
 		set /a "mcpu=0"
@@ -454,6 +455,7 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
 				if "%%j"=="PWD" set "mpwd=!vtmp!"
 				if "%%j"=="SRC" set "msrc=!vtmp!"
 				if "%%j"=="DST" set "mdst=!vtmp!"
+				if "%%j"=="MOV" set "mmov=!vtmp!"
 				if "%%j"=="RPT" set "mrpt=!vtmp!"
 
 				if "%%j"=="CPU" set "mcpu=!vtmp!"
@@ -540,17 +542,31 @@ rem			set "mbut=!mbut:/=\!"
 		call :cleanpath "!mpwd!" && set "mpwd=!pcln!"
 		call :cleanpath "!msrc!" && set "msrc=!pcln!"
 		call :cleanpath "!mdst!" && set "mdst=!pcln!"
+		call :cleanpath "!mmov!" && set "mmov=!pcln!"
 		call :cleanpath "!mrpt!" && set "mrpt=!pcln!"
 		call :cleanpath "!mdup!" && set "mdup=!pcln!"
 
 		rem Correct the CPU max
 		if "!mcpu!"=="" set /a "mcpu=0"
+		if "!mcpu:~-1!"=="%%" (
+			rem CPU ratio
+			set /a "mcpu=!mcpu:~0,-1!"
+			set /a "mcpu=!mcpu!*%cmax%/100"
+		)
 		if !mcpu! equ 0 (
+			rem No CPU
 			set "mcpu=%cmax%"
 		) else (
-			set /a "mcpu=!mcpu!-(1-%cmin%)"
-			if !mcpu! gtr %cmax% set /a "mcpu=%cmax%"
+			rem CPU number
+			if !mcpu! gtr 0 (
+				rem Positive
+				set /a "mcpu=!mcpu!-(1-%cmin%)"
+			) else (
+				rem Negative
+				set /a "mcpu=%cmax%+!mcpu!"
+			)
 		)
+		if !mcpu! gtr %cmax% set /a "mcpu=%cmax%"
 
 		rem If no source path, switch to destination path
 		if "!msrc!"=="" if not "!mdst!"=="" set "msrc=!mdst!"
@@ -639,7 +655,7 @@ rem							robocopy "!msrc!\*.%%j" "!mdst!" /s %quiet%
 					if not "!mcpy!"=="" (
 						echo  Copying specific files... %clog%
 						set "vcmd=!mcpy!"
-						call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "" && set "mcpy=!pcmd!"
+						call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "!mmov!" "" && set "mcpy=!pcmd!"
 if not "!vdeb!"=="" echo mcpy=!mcpy!
 						for %%j in (!mcpy!) do (
 							if exist "%%j" copy /y "%%j" "!mdst!" %quiet%
@@ -722,7 +738,7 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
 					rem If no extension, execute at least once (ie. simple batch execution)
 					echo:> "%vsrt%.%%i.0" 2>nul
 					set "vcmd=$[FILE]"
-					call :adaptvcmd "%2" "!vexe!" "!msrc!" "!vrel!" ""
+					call :adaptvcmd "%2" "!vexe!" "!msrc!" "!vrel!" "!mmov!" ""
 					echo Running '!pcmd!'...> "%vsrt%.%%i.1" 2>nul
 				)
 
@@ -911,9 +927,9 @@ if not "!vdeb!"=="" echo       Adapt destination file... %clog%
 								set "vcmd=!mlnk!"
 								rem Pass the file list only if used (try to avoid the 8191 bytes bug)
 								if not "!mlnk!"=="!mlnk:$[LIST]=!" (
-									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
+									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" "!vlst!"
 								) else (
-									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" ""
+									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" ""
 								)
 								set "vcmd=!pcmd!"
 								echo !vcmd!>>"%vlnk%.0"
@@ -931,9 +947,9 @@ rem  echo Do it :/
 									set "vcmd=!vtmp!"
 									rem Pass the file list only if used (try to avoid the 8192 bytes bug)
 									if not "!vtmp!"=="!vtmp:$[LIST]=!" (
-										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!vlst!"
+										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" "!vlst!"
 									) else (
-										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" ""
+										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" ""
 									)
 									set "vcmd=!pcmd!"
 								)
@@ -963,7 +979,7 @@ rem  echo vcmd2="!vcmd!"
 										)
 									) else (
 										rem Adapt the command-line in !vcmd!
-										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "" && set "vcmd=!pcmd!"
+										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" "" && set "vcmd=!pcmd!"
 										echo:!vcmd!>>"%lvia%.!cnxt!"
 									)
 								)
@@ -1061,7 +1077,7 @@ if not "!vdeb!"=="" echo dup=%%a
 			rem Include the log file into the output stream
 			if not "!mlog!"=="" (
 				set "vcmd=!mlog!"
-				call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "" && set "mlog=!pcmd!"
+				call :adaptvcmd "%2" "%2" "!msrc!" "!mdst!" "!mmov!" "" && set "mlog=!pcmd!"
 				call :expandsize "!mlog!"
 				if not "!pexp!"=="0" (
 					type "!mlog!" %clog%
@@ -1216,7 +1232,7 @@ if not "!vdeb!"=="" echo     read file ret - !plin!
 goto :eof
 
 :waiterr
-	rem Check %errorlevel% exit codes, if any
+	rem Check %errorlevel% exit codes, if any (not accurate, needs rework)
 	for %%l in ("%lerr%*") do (
 		for /f "delims=!" %%m in ("%%l") do (
 			set "perr=%%~m"
@@ -1337,7 +1353,8 @@ goto :eof
 	rem %2 : file
 	rem %3 : source
 	rem %4 : relative
-	rem %5 : list
+	rem %5 : move
+	rem %6 : list
 	rem When a command includes spaces and/or double quotes, it gets exploded
 	rem That's why I process the !vcmd! variable directly
 	set "pcmd=!vcmd!"
@@ -1352,7 +1369,8 @@ goto :eof
 	set "pcmd=!pcmd:$[SIZE]=%~z2!"
 	set "pcmd=!pcmd:$[LOC_SRC]=%~3!"
 	set "pcmd=!pcmd:$[LOC_DST]=%~4!"
-	set "pcmd=!pcmd:$[LIST]=%~5!"
+	set "pcmd=!pcmd:$[LOC_MOV]=%~5!"
+	set "pcmd=!pcmd:$[LIST]=%~6!"
 	rem Remove double characters
 	set "pcmd=!pcmd:\\=\!"
 	set "pcmd=!pcmd:""="!"
