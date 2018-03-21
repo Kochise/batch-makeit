@@ -173,7 +173,7 @@ rem	echo %%*>>"%lbat%.%%c.bat"
 )
 
 rem Print the header
-echo --- Extended Batch Makefile - %fdate% @ %ftime% ---------------------------- %clog%
+echo --- Extended Batch Makefile v2.7 - %fdate% @ %ftime% ----------------------- %clog%
 echo Cd : %CD% %clog%
 echo Makeit cmd : %1 %clog%
 echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
