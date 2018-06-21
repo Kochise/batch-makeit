@@ -1,6 +1,6 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH v2.7 2013-2018
+rem Extended Batch Makefile by David KOCH v2.8 2013-2018
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument	%0	%1		%2			%3					%4
 rem					|		|			|					|
@@ -450,6 +450,8 @@ if "%vdeb%"=="TOTO" if not "%%j"=="SRC" if not "%%j"=="DST" if not "%%j"=="INC" 
 				for /l %%l in (1,1,2) do if "!vtmp:~-1!"==" " set "vtmp=!vtmp:~0,-1!"
 				for /l %%l in (1,1,2) do if "!vtmp:~0,1!"==" " set "vtmp=!vtmp:~1!"
 
+if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
+
 				if "%%j"=="REM" set "mrem=!vtmp!"
 				if "%%j"=="EXE" set "mexe=!vtmp!"
 				if "%%j"=="PWD" set "mpwd=!vtmp!"
@@ -597,23 +599,26 @@ rem			echo  ERROR : No executable file defined for "%%i" ! %clog%
 
 		rem /!\ Do *NOT* link these two 'not "!mexe!"==""' sections -> BUG
 
-		if not "!mexe!"=="" if "!msrc!"=="" (
-			echo  ERROR : Neither source nor destination path for "%%i" ! %clog%
-		) else (
+if not "!vdeb!"==""	echo mexe=!mexe!
+if not "!vdeb!"==""	echo msrc=!msrc!
+if not "!vdeb!"==""	echo mdst=!mdst!
+
 			rem Beware buddies, "LOC_" always *HAVE* to be the first tag in %vpre%
 			if "%%i"=="LOC_" (
 				rem Keep the build path of binaries and build report folder
 				set "mloc=!mexe!"
 				set "vrpt=!mrpt!"
+if not "!vdeb!"=="" echo mloc=!mloc!
+if not "!vdeb!"=="" echo vrpt=!vrpt!
+		) else (
+			if not "!mexe!"=="" if "!msrc!"=="" (
+				echo  ERROR : Neither source nor destination path for "%%i" ! %clog%
 			) else (
 				rem Yeah, because if the path doesn't exist, file creation fails
 				if not "!mdst!"=="" (
 					rem If not same destination directory as previous step
 					if not "!mdst!"=="!mold!" (
 						echo  Creating destination folder... %clog%
-if not "!vdeb!"==""		echo msrc=!msrc!
-if not "!vdeb!"==""		echo mdst=!mdst!
-
 						rem Create root destination directory
 						mkdir "!mdst!" 2>nul
 						set "mold=!mdst!"
@@ -628,7 +633,10 @@ rem							xcopy "!msrc!" "!mdst!" /e /t /y /q %quiet%
 					)
 
 					rem Delete specific files from destination folder
-					for /l %%l in (1,1,1) do if "!mdel:~0,1!"==" " set "mdel=!mdel:~1!"
+					for /l %%l in (1,1,1) do (
+						if "!mdel:~0,1!"==" " set "mdel=!mdel:~1!"
+					)
+
 					if not "!mdel!"=="" (
 if not "!vdeb!"=="" echo mdel=!mdel!
 						echo  Deleting old destination files... %clog%
@@ -639,7 +647,10 @@ if not "!vdeb!"=="" echo del=!mdst!\*.%%j
 					)
 
 					rem Xcopy specific files into destination folder
-					for /l %%l in (1,1,1) do if "!mxpy:~0,1!"==" " set "mxpy=!mxpy:~1!"
+					for /l %%l in (1,1,1) do (
+						if "!mxpy:~0,1!"==" " set "mxpy=!mxpy:~1!"
+					)
+
 					if not "!mxpy!"=="" (
 if not "!vdeb!"=="" echo mxpy=!mxpy!
 						echo  Xcopying source files... %clog%
@@ -651,7 +662,10 @@ rem							robocopy "!msrc!\*.%%j" "!mdst!" /s %quiet%
 					)
 
 					rem Copy the files into destination folder
-					for /l %%l in (1,1,1) do if "!mcpy:~0,1!"==" " set "mcpy=!mcpy:~1!"
+					for /l %%l in (1,1,1) do (
+						if "!mcpy:~0,1!"==" " set "mcpy=!mcpy:~1!"
+					)
+
 					if not "!mcpy!"=="" (
 						echo  Copying specific files... %clog%
 						set "vcmd=!mcpy!"
@@ -666,16 +680,21 @@ if not "!vdeb!"=="" echo mcpy=!mcpy!
 				rem Construct the argument chain
 				set "vtmp="
 				if not "!mcli!"=="" for %%j in (!mcli!) do (
-					if "%%j"=="LOC" set "vexe=!vexe!"!mloc!\"
+					if "%%j"=="LOC" (
+if not "!vdeb!"=="" echo "mloc"\vexe2="!mloc!"\!vexe!
+						set "vexe=!vexe!"!mloc!\"
+					)
 					if "%%j"=="EXE" (
 						if "!mexe:~1,1!"==":" (
 							rem If executable seems absolute, expand and keep it as-is
 							call :expandpath "!mexe!" && set "vexe=!pexp!"
 						) else (
+if not "!vdeb!"=="" echo "vexe3"\mexe="!vexe!"\!mexe!
 							set "vexe=!vexe!!mexe!"
 						)
 						rem If command line started with a quote (note the hideous syntax)
 						if "!vexe:~0,1!"==^"^"^" set "vexe=!vexe!""
+if not "!vdeb!"=="" echo "vexe4"="!vexe!"
 rem						set "vexe=!vexe! "
 					)
 
@@ -724,11 +743,15 @@ rem						set "vexe=!vexe! "
 					)
 				)
 
-if not "!vdeb!"=="" echo arg-vtmp="%%j-!vtmp!"
+if not "!vdeb!"=="" echo "arg"/vtmp="%%j"/!vtmp!
+if not "!vdeb!"=="" echo vexe=!vexe!
 
 				rem Clean up the command line
 				if not "!vexe!"=="" set "vcmd=!vexe!" && call :cleanvcmd && set "vexe=!pcmd!"
 				if not "!vtmp!"=="" set "vcmd=!vtmp!" && call :cleanvcmd && set "vtmp=!pcmd!"
+
+if not "!vdeb!"=="" echo vexe=!vexe!
+if not "!vdeb!"=="" echo vtmp=!vtmp!
 
 				rem Each extension, list files
 				if not "!mext!"=="" for %%a in (!mext!) do (
