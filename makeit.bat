@@ -1,6 +1,6 @@
 @echo off
 
-rem Extended Batch Makefile by David KOCH v2.8 2013-2018
+rem Extended Batch Makefile by David KOCH v2.9 2013-2019
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument	%0	%1		%2			%3					%4
 rem					|		|			|					|
@@ -32,6 +32,7 @@ rem				run		 - launch the selected debugger executable
 rem				map		 - perform mapping analysis
 
 rem Todo list (Oh No! More Lemmings)
+rem Better @via management through collating a set of preprocessed sections
 rem Correct error management through batch files for multi-core compilation
 rem Try to synchronize output execution result with target execution message
 rem Add a xxx_PWD suffix to specify a execution directory other than current
@@ -48,6 +49,7 @@ rem And these damn paths with a space into them, not easy to collate them
 rem http://www.robvanderwoude.com/shorts.php
 rem http://waynes-world-it.blogspot.fr/
 rem http://ss64.com/nt/
+rem http://ss64.com/nt/syntax-args.html
 
 rem For correct string substitution, need delayed variable expansion
 rem %var% will access the parsed value and !var! the run-time value
@@ -114,7 +116,10 @@ set "varg=REM EXE PWD SRC DST MOV RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EX
 rem Set default variables
 set "verr=0"
 set "vrel=%~dp2"
-set "vsrc=%~f2.txt"
+set "vsrc=%~f2"
+if not exist "%vsrc%" (
+	set "vsrc=%~f2.txt"
+)
 set "vloc=%~dp2"
 set "vdst=%vloc%%fdate%_%ftime%_%2_%1"
 set "vlnk=%vdst%\%2.link"
@@ -173,13 +178,13 @@ rem	echo %%*>>"%lbat%.%%c.bat"
 )
 
 rem Print the header
-echo --- Extended Batch Makefile v2.7 - %fdate% @ %ftime% ----------------------- %clog%
+echo --- Extended Batch Makefile v2.9 - %fdate% @ %ftime% --------------------- %clog%
 echo Cd : %CD% %clog%
 echo Makeit cmd : %1 %clog%
 echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
 if not "%vexc%"=="" echo Makeit exc : !vexc:%vrel%=.\! %clog%
 echo Makeit log : !vlog:%vrel%=.\! %clog%
-echo --- %vtxt% --------------------------------------------------------------- %clog%
+echo --- %vtxt% ------------------------------------------------------------- %clog%
 echo:%clog%
 
 rem Start the job
@@ -198,7 +203,7 @@ for /l %%h in (1,1,%vpas%) do (
 rem	echo   Inclusion level %%h/%vpas% %clog%
 	if exist "%vslv%.0" (
 		rem Find INCLUDE tags
-		findstr /b "%vtag%" "%vslv%.0" >"%vslv%.1"
+		findstr /b "%vtag%" "%vslv%.0">"%vslv%.1"
 		if "0"=="!errorlevel!" (
 			rem Save original file before recreation
 			copy /y "%vslv%.0" "%vslv%.3" %quiet%
@@ -233,7 +238,7 @@ rem					echo vinc="!vinc:~0,8!" %clog%
 set "vtag=LOC_DST="
 
 rem Solve destination path with current configuration
-findstr /b "%vtag%" "%vslv%.0" >"%vslv%.1"
+findstr /b "%vtag%" "%vslv%.0">"%vslv%.1"
 if "0"=="!errorlevel!" (
 	rem Adding config name to destination path (if defined)
 	echo Adding config name to LOC_DST path... %clog%
@@ -293,7 +298,7 @@ rem	echo   Resolution level %%h/%vpas% %clog%
 	rem Because: how can you differentiate a file (to expand) from an argument?
 	if exist "%vslv%.0" (
 		rem Find unsolved argument to process
-		findstr /n "%vtag%" "%vslv%.0" >"%vslv%.1"
+		findstr /n "%vtag%" "%vslv%.0">"%vslv%.1"
 		if "0"=="!errorlevel!" (
 			rem Save original file before recreation
 			copy /y "%vslv%.0" "%vslv%.3" %quiet%
@@ -369,7 +374,7 @@ rem Quit (for debug)
 rem goto :eof
 
 rem You can compare "%vslv%.0" with "%vslv%.3" to check the variable expansion
-rem sort "%vslv%.0" >"%vsrt%.0"
+rem sort "%vslv%.0">"%vsrt%.0"
 copy /y "%vslv%.0" "%vsrt%.0" %quiet%
 
 rem Parse and execute commands
@@ -466,11 +471,11 @@ if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
 				if "%%j"=="VIA" (
 					rem If VIA tag previously empty, flush arguments
 					if "!mvia!"=="" if not "!vtmp!"=="" (
-						echo !marg!>"%vsrt%.%%i.arg"
-						echo !mdef!>"%vsrt%.%%i.def"
-						echo !minc!>"%vsrt%.%%i.inc"
-						echo !mlib!>"%vsrt%.%%i.lib"
-						echo !mtmp!>"%vsrt%.%%i.tmp"
+						echo:!marg!>"%vsrt%.%%i.arg"
+						echo:!mdef!>"%vsrt%.%%i.def"
+						echo:!minc!>"%vsrt%.%%i.inc"
+						echo:!mlib!>"%vsrt%.%%i.lib"
+						echo:!mtmp!>"%vsrt%.%%i.tmp"
 					)
 					set "mvia=!vtmp!"
 				)
@@ -498,14 +503,30 @@ if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
 					rem Via-method compatible arguments (accumulated)
 					if "!mvia!"=="" (
 						if "%%j"=="ARG" set "marg=!marg! !vtmp!"
-						if "%%j"=="DEF" set "mdef=!mdef! !cdef!^"!vtmp!^""
-						if "%%j"=="INC" set "minc=!minc! !cinc!^"!vtmp!^""
+						if "%%j"=="DEF" set "mdef=!mdef! !cdef!!vtmp!"
+						if "%%j"=="INC" (
+							if "!vtmp!"=="!vtmp: =!" (
+								set "minc=!minc! !cinc!!vtmp!"
+							) else (
+								set "minc=!minc! !cinc!^"!vtmp!^""
+							)
+						)
 						if "%%j"=="LIB" set "mlib=!mlib! !vtmp!"
 						if "%%j"=="TMP" set "mtmp=!mtmp! !vtmp!"
 					) else (
 						if "%%j"=="ARG" echo !vtmp!>>"%vsrt%.%%i.arg"
-						if "%%j"=="DEF" echo !cdef!^"!vtmp!^"">>"%vsrt%.%%i.def"
-						if "%%j"=="INC" echo !cinc!^"!vtmp!^"">>"%vsrt%.%%i.inc"
+						if "%%j"=="DEF" (
+							set "mdef=!cdef!!vtmp!"
+							echo !mdef!>>"%vsrt%.%%i.def"
+						)
+						if "%%j"=="INC" (
+							if "!vtmp!"=="!vtmp: =!" (
+								set "minc=!cinc!!vtmp!"
+							) else (
+								set "minc=!cinc!^"!vtmp!^""
+							)
+							echo !minc!>>"%vsrt%.%%i.inc"
+						)
 						if "%%j"=="LIB" echo !vtmp!>>"%vsrt%.%%i.lib"
 						if "%%j"=="TMP" echo !vtmp!>>"%vsrt%.%%i.tmp"
 					)
@@ -698,48 +719,33 @@ if not "!vdeb!"=="" echo "vexe4"="!vexe!"
 rem						set "vexe=!vexe! "
 					)
 
+					if "%%j"=="SRC" set "vtmp=!vtmp!!msrc! "
+					if "%%j"=="DST" set "vtmp=!vtmp!!mdst! "
+
+					if "%%j"=="DBG" set "vtmp=!vtmp!!mdbg! "
+					if "%%j"=="DEP" set "vtmp=!vtmp!!mdep! "
+					if "%%j"=="OBJ" set "vtmp=!vtmp!!mobj! "
+					if "%%j"=="BIN" set "vtmp=!vtmp!!mbin! "
+
+					rem File operation specific arguments
+					if "%%j"=="EXT" set "vtmp=!vtmp!"$[THIS]" "
+					if "%%j"=="EXC" set "vtmp=!vtmp!!mexc! "
+					if "%%j"=="BUT" set "vtmp=!vtmp!!mbut! "
+					if "%%j"=="LST" set "vtmp=!vtmp!$[LIST] "
+
+					rem Via-method compatible arguments
 					if "!mvia!"=="" (
-						if "%%j"=="SRC" set "vtmp=!vtmp!!msrc! "
-						if "%%j"=="DST" set "vtmp=!vtmp!!mdst! "
-
-						if "%%j"=="DBG" set "vtmp=!vtmp!!mdbg! "
-						if "%%j"=="DEP" set "vtmp=!vtmp!!mdep! "
-						if "%%j"=="OBJ" set "vtmp=!vtmp!!mobj! "
-						if "%%j"=="BIN" set "vtmp=!vtmp!!mbin! "
-
-						rem File operation specific arguments
-						if "%%j"=="EXT" set "vtmp=!vtmp!"$[THIS]" "
-						if "%%j"=="EXC" set "vtmp=!vtmp!!mexc! "
-						if "%%j"=="BUT" set "vtmp=!vtmp!!mbut! "
-						if "%%j"=="LST" set "vtmp=!vtmp!$[LIST] "
-
-						rem Via-method compatible arguments
 						if "%%j"=="ARG" set "vtmp=!vtmp!!marg! "
 						if "%%j"=="DEF" set "vtmp=!vtmp!!mdef! "
 						if "%%j"=="INC" set "vtmp=!vtmp!!minc! "
 						if "%%j"=="LIB" set "vtmp=!vtmp!!mlib! "
 						if "%%j"=="TMP" set "vtmp=!vtmp!!mtmp! "
 					) else (
-						if "%%j"=="SRC" echo !msrc!>>"%vsrt%.%%i.via"
-						if "%%j"=="DST" echo !mdst!>>"%vsrt%.%%i.via"
-
-						if "%%j"=="DBG" echo !mdbg!>>"%vsrt%.%%i.via"
-						if "%%j"=="DEP" echo !mdep!>>"%vsrt%.%%i.via"
-						if "%%j"=="OBJ" echo !mobj!>>"%vsrt%.%%i.via"
-						if "%%j"=="BIN" echo !mbin!>>"%vsrt%.%%i.via"
-
-						rem File operation specific arguments
-						if "%%j"=="EXT" echo "$[THIS]">>"%vsrt%.%%i.via"
-						if "%%j"=="EXC" echo !mexc!>>"%vsrt%.%%i.via"
-						if "%%j"=="BUT" echo !mbut!>>"%vsrt%.%%i.via"
-						if "%%j"=="LST" echo $[LIST]>>"%vsrt%.%%i.via"
-
-						rem Via-method compatible arguments
-						if "%%j"=="ARG" type "%vsrt%.%%i.arg" >>"%vsrt%.%%i.via"
-						if "%%j"=="DEF" type "%vsrt%.%%i.def" >>"%vsrt%.%%i.via"
-						if "%%j"=="INC" type "%vsrt%.%%i.inc" >>"%vsrt%.%%i.via"
-						if "%%j"=="LIB" type "%vsrt%.%%i.lib" >>"%vsrt%.%%i.via"
-						if "%%j"=="TMP" type "%vsrt%.%%i.tmp" >>"%vsrt%.%%i.via"
+						if "%%j"=="ARG" type "%vsrt%.%%i.arg">>"%vsrt%.%%i.via"
+						if "%%j"=="DEF" type "%vsrt%.%%i.def">>"%vsrt%.%%i.via"
+						if "%%j"=="INC" type "%vsrt%.%%i.inc">>"%vsrt%.%%i.via"
+						if "%%j"=="LIB" type "%vsrt%.%%i.lib">>"%vsrt%.%%i.via"
+						if "%%j"=="TMP" type "%vsrt%.%%i.tmp">>"%vsrt%.%%i.via"
 					)
 				)
 
@@ -768,7 +774,7 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
 				rem If linker and destination link files list present
 				if "%%i"=="LNK_" if not "!mlnk!"=="" if exist %vlnk%.0 (
 rem					copy "%vlnk%.0" "%vsrt%.%%i.0" /y %quiet%
-					findstr "!mlnk!" "%vlnk%.0" >"%vsrt%.%%i.0"
+					findstr "!mlnk!" "%vlnk%.0">"%vsrt%.%%i.0"
 				)
 
 				rem Start anew
@@ -786,12 +792,12 @@ if not "!vdeb!"=="" if not "!mexc!"=="" echo mexc=!mexc!
 						copy "%vsrt%.%%i.0" "%vsrt%.%%i.4" /y %quiet%
 					) else (
 						rem Remove excluded files (bug: never '/xxx/', at least 'dummy /xxx/')
-						findstr /i /v "!mexc!" "%vsrt%.%%i.0" >"%vsrt%.%%i.4"
+						findstr /i /v "!mexc!" "%vsrt%.%%i.0">"%vsrt%.%%i.4"
 						if not "!mbut!"=="" (
 							rem Add anti excluded files
-							findstr /i "!mbut!" "%vsrt%.%%i.0" >>"%vsrt%.%%i.4"
+							findstr /i "!mbut!" "%vsrt%.%%i.0">>"%vsrt%.%%i.4"
 							rem Sort remaining files
-							sort "%vsrt%.%%i.4" >"%vsrt%.%%i.5"
+							sort "%vsrt%.%%i.4">"%vsrt%.%%i.5"
 rem							copy "%vsrt%.%%i.4" "%vsrt%.%%i.5" /y %quiet%
 							rem Remove duplicate lines
 							if exist %vsrt%.%%i.5 (
@@ -813,7 +819,7 @@ if not "!vdeb!"=="" echo     Listing remaining files... %clog%
 						rem Apply external excludes
 						if not "%vexc%"=="" (
 rem							for /f "delims=!" %%a in (%vexc%) do set "mexc=!mexc! %%a"
-							findstr /i /v /g:"%vexc%" "%vsrt%.%%i.4" >"%vsrt%.%%i.5"
+							findstr /i /v /g:"%vexc%" "%vsrt%.%%i.4">"%vsrt%.%%i.5"
 							copy "%vsrt%.%%i.5" "%vsrt%.%%i.4" /y %quiet%
 							del "%vsrt%.%%i.5" %fquiet%
 						)
@@ -869,6 +875,7 @@ if not "!vdeb!"=="" echo     msrc=!msrc!
 if not "!vdeb!"=="" echo     mdst=!mdst!
 
 rem						set "vrel=!vrel:/=\!"
+						if "!vrel:~-1!"=="/" set "vrel=!vrel:~0,-1!"
 						if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
 						call set "vrel=%%vrel:!msrc!=!mdst!%%"
 
@@ -992,13 +999,13 @@ rem  echo vcmd2="!vcmd!"
 											rem If a destination link files list exists, use it for linking
 											if exist "%vlnk%.0" (
 												rem Linking requires the destination link files list
-												type "%vlnk%.0" >>"%lvia%.!cnxt!"
+												type "%vlnk%.0">>"%lvia%.!cnxt!"
 											) else (
 												rem Linking requires the original source files list
-												type "%vsrt%.%%i.0" >>"%lvia%.!cnxt!"
+												type "%vsrt%.%%i.0">>"%lvia%.!cnxt!"
 											)
 										) else (
-											type "%vsrt%.%%i.1" >>"%lvia%.!cnxt!"
+											type "%vsrt%.%%i.1">>"%lvia%.!cnxt!"
 										)
 									) else (
 										rem Adapt the command-line in !vcmd!
@@ -1015,7 +1022,7 @@ if not "!vdeb!"=="" echo       Process file... %clog%
 
 							rem Keep the expanded command line for debugging purpose
 							echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
-							if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.2"
+							if not "!mvia!"=="" type "%lvia%.!cnxt!">>"%vsrt%.%%i.2"
 
 							rem Display the file being processed
 							set "mrel=%%a"
@@ -1024,7 +1031,7 @@ if not "!vdeb!"=="" echo       Process file... %clog%
 
 							rem Log the executed command line (in case of lock conflict)
 							echo !vexe! !vcmd!>>"%vsrt%.%%i.3"
-							if not "!mvia!"=="" type "%lvia%.!cnxt!" >>"%vsrt%.%%i.3"
+							if not "!mvia!"=="" type "%lvia%.!cnxt!">>"%vsrt%.%%i.3"
 
 rem  echo vcmd3="!vcmd!"
 
@@ -1082,11 +1089,11 @@ rem				exit /b !verr!
 					if not "!mobj!"=="" dir "!mdst!\*.!mobj!" %vdir% >>"%vsrt%.%%i.6"
 					if not "!mbin!"=="" dir "!mdst!\*.!mbin!" %vdir% >>"%vsrt%.%%i.6"
 					if exist "%vsrt%.%%i.6" (
-rem						sort "%vsrt%.%%i.6" >"%vsrt%.%%i.5"
+rem						sort "%vsrt%.%%i.6">"%vsrt%.%%i.5"
 						copy "%vsrt%.%%i.6" "%vsrt%.%%i.5" /y %quiet%
 
 						rem Remove already duplicated files
-						findstr /i /v "!mdup!" "%vsrt%.%%i.5" >"%vsrt%.%%i.6"
+						findstr /i /v "!mdup!" "%vsrt%.%%i.5">"%vsrt%.%%i.6"
 if not "!vdeb!"=="" echo mdup=!mdup!
 						echo  Duplicating destination files... %clog%
 						if exist "%vsrt%.%%i.6" for /f "delims=!" %%a in (%vsrt%.%%i.6) do (
@@ -1356,8 +1363,9 @@ goto :eof
 		rem Expand argument
 		set "pcln=%~1"
 		rem Change slashes
-		set "pcln=!pcln:/=\!"
+rem		set "pcln=!pcln:/=\!"
 		rem Remove last backslash
+		if "!pcln:~-1!"=="/" set "pcln=!pcln:~0,-1!"
 		if "!pcln:~-1!"=="\" set "pcln=!pcln:~0,-1!"
 	)
 goto :eof
