@@ -32,10 +32,9 @@ rem				run		 - launch the selected debugger executable
 rem				map		 - perform mapping analysis
 
 rem Todo list (Oh No! More Lemmings)
-rem Better @via management through collating a set of preprocessed sections
 rem Correct error management through batch files for multi-core compilation
 rem Try to synchronize output execution result with target execution message
-rem Add a xxx_PWD suffix to specify a execution directory other than current
+rem Find the reason why it is so slow between steps, check for useless loops
 rem Convert to native, lua, shell, whatever less bogus and snappier execution time
 rem Praise the Lords...
 
@@ -79,6 +78,8 @@ if "%1"=="--help" goto info
 if "%1"=="--info" goto info
 if "%1"=="-man" goto info
 if "%1"=="--manual" goto info
+if "%1"=="-rtfm" goto info
+if "%1"=="-wat" goto info
 
 rem Set command variables
 set "vtxt=%1ing"
@@ -111,7 +112,8 @@ if "%1"=="run" set "vpre=RUN_"
 if "%1"=="map" set "vpre=MAP_"
 
 rem Set argument list (currently supported suffixes)
-set "varg=REM EXE PWD SRC DST MOV RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC BUT DEL XPY CPY ARG DEF INC LIB TMP"
+set "vvia=ARG DEF INC LIB TMP"
+set "varg=EXE PWD SEP SRC DST MOV RPT CPU CLI VIA LOG DBG DEP OBJ LNK BIN DUP EXT EXC BUT DEL XPY CPY %vvia% REM"
 
 rem Set default variables
 set "verr=0"
@@ -127,7 +129,8 @@ set "vslv=%vdst%\%2.solv"
 set "vsrt=%vdst%\%2.sort"
 set "vdir=/B /A:-D /ON /S"
 
-rem Set default tags (GCC style), change them with LOC_DEF and LOC_INC
+rem Set default tags (GCC style), change them with LOC_SEP, LOC_DEF and LOC_INC
+set "csep="
 set "cdef=-D"
 set "cinc=-I"
 
@@ -178,7 +181,7 @@ rem	echo %%*>>"%lbat%.%%c.bat"
 )
 
 rem Print the header
-echo --- Extended Batch Makefile v2.9 - %fdate% @ %ftime% --------------------- %clog%
+echo --- Extended Batch Makefile v2.9.1 - %fdate% @ %ftime% ------------------- %clog%
 echo Cd : %CD% %clog%
 echo Makeit cmd : %1 %clog%
 echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
@@ -387,11 +390,11 @@ rem For each command prefix
 for %%i in (%vpre%) do (
 	if not "%%i"=="" (
 		set "vexe="
-		set "vvia="
 
 		set "mrem="
 		set "mexe="
 		set "mpwd="
+		set "msep="
 		set "msrc="
 		set "mdst="
 		set "mmov="
@@ -460,6 +463,7 @@ if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
 				if "%%j"=="REM" set "mrem=!vtmp!"
 				if "%%j"=="EXE" set "mexe=!vtmp!"
 				if "%%j"=="PWD" set "mpwd=!vtmp!"
+				if "%%j"=="SEP" set "msep=!vtmp!"
 				if "%%j"=="SRC" set "msrc=!vtmp!"
 				if "%%j"=="DST" set "mdst=!vtmp!"
 				if "%%j"=="MOV" set "mmov=!vtmp!"
@@ -471,11 +475,11 @@ if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
 				if "%%j"=="VIA" (
 					rem If VIA tag previously empty, flush arguments
 					if "!mvia!"=="" if not "!vtmp!"=="" (
-						echo:!marg!>"%vsrt%.%%i.arg"
-						echo:!mdef!>"%vsrt%.%%i.def"
-						echo:!minc!>"%vsrt%.%%i.inc"
-						echo:!mlib!>"%vsrt%.%%i.lib"
-						echo:!mtmp!>"%vsrt%.%%i.tmp"
+						if not "!marg!"=="" call :writevar "!marg!" "%vsrt%.%%i.via.arg"
+						if not "!mdef!"=="" call :writevar "!mdef!" "%vsrt%.%%i.via.def"
+						if not "!minc!"=="" call :writevar "!minc!" "%vsrt%.%%i.via.inc"
+						if not "!mlib!"=="" call :writevar "!mlib!" "%vsrt%.%%i.via.lib"
+						if not "!mtmp!"=="" call :writevar "!mtmp!" "%vsrt%.%%i.via.tmp"
 					)
 					set "mvia=!vtmp!"
 				)
@@ -497,6 +501,7 @@ if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
 
 				if "%%i"=="LOC_" (
 					rem Change default tags
+					if "%%j"=="SEP" set "csep=!vtmp!"
 					if "%%j"=="DEF" set "cdef=!vtmp!"
 					if "%%j"=="INC" set "cinc=!vtmp!"
 				) else (
@@ -505,6 +510,7 @@ if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
 						if "%%j"=="ARG" set "marg=!marg! !vtmp!"
 						if "%%j"=="DEF" set "mdef=!mdef! !cdef!!vtmp!"
 						if "%%j"=="INC" (
+							rem Check if spaces in path
 							if "!vtmp!"=="!vtmp: =!" (
 								set "minc=!minc! !cinc!!vtmp!"
 							) else (
@@ -514,21 +520,68 @@ if not "!vdeb!"==""	echo i/j/vtmp=%%i/%%j/!vtmp!
 						if "%%j"=="LIB" set "mlib=!mlib! !vtmp!"
 						if "%%j"=="TMP" set "mtmp=!mtmp! !vtmp!"
 					) else (
-						if "%%j"=="ARG" echo !vtmp!>>"%vsrt%.%%i.arg"
+						if "%%j"=="ARG" echo !vtmp!>>"%vsrt%.%%i.via.arg"
 						if "%%j"=="DEF" (
 							set "mdef=!cdef!!vtmp!"
-							echo !mdef!>>"%vsrt%.%%i.def"
+							echo !mdef!>>"%vsrt%.%%i.via.def"
 						)
 						if "%%j"=="INC" (
+							rem Check if spaces in path
 							if "!vtmp!"=="!vtmp: =!" (
 								set "minc=!cinc!!vtmp!"
 							) else (
 								set "minc=!cinc!^"!vtmp!^""
 							)
-							echo !minc!>>"%vsrt%.%%i.inc"
+							echo !minc!>>"%vsrt%.%%i.via.inc"
 						)
-						if "%%j"=="LIB" echo !vtmp!>>"%vsrt%.%%i.lib"
-						if "%%j"=="TMP" echo !vtmp!>>"%vsrt%.%%i.tmp"
+						if "%%j"=="LIB" echo !vtmp!>>"%vsrt%.%%i.via.lib"
+						if "%%j"=="TMP" echo !vtmp!>>"%vsrt%.%%i.via.tmp"
+					)
+				)
+			)
+		)
+
+		rem Set separator
+		if "!msep!"=="" set "msep=!csep!"
+
+		set /a "narg=0"
+		set /a "ndef=0"
+		set /a "ninc=0"
+		set /a "nlib=0"
+		set /a "ntmp=0"
+
+		rem Check Via-method compatible arguments
+		for %%j in (%vvia%) do (
+			if "!mvia!"=="" (
+				if "%%j"=="ARG" if not "!marg!"=="" if not "!marg!"=="!marg:$[=!" set /a "narg=1"
+				if "%%j"=="DEF" if not "!mdef!"=="" if not "!mdef!"=="!mdef:$[=!" set /a "ndef=1"
+				if "%%j"=="INC" if not "!minc!"=="" if not "!minc!"=="!minc:$[=!" set /a "ninc=1"
+				if "%%j"=="LIB" if not "!mlib!"=="" if not "!mlib!"=="!mlib:$[=!" set /a "nlib=1"
+				if "%%j"=="TMP" if not "!mtmp!"=="" if not "!mtmp!"=="!mtmp:$[=!" set /a "ntmp=1"
+			) else (
+				set "nvia="
+
+				Rem Select file extension
+				if "%%j"=="ARG" set "nvia=arg"
+				if "%%j"=="DEF" set "nvia=def"
+				if "%%j"=="INC" set "nvia=inc"
+				if "%%j"=="LIB" set "nvia=lib"
+				if "%%j"=="TMP" set "nvia=tmp"
+
+				rem Check if file is resolvable
+				if exist "%vsrt%.%%i.via.!nvia!" (
+					findstr "$[" "%vsrt%.%%i.via.!nvia!">"%vsrt%.%%i.via.!nvia!.1"
+					if exist "%vsrt%.%%i.via.!nvia!.1" (
+						call :expandsize "%vsrt%.%%i.via.!nvia!.1"
+						if not "!pexp!"=="0" (
+							rem Remember which file is resolvable
+							if "%%j"=="ARG" set /a "narg=1"
+							if "%%j"=="DEF" set /a "ndef=1"
+							if "%%j"=="INC" set /a "ninc=1"
+							if "%%j"=="LIB" set /a "nlib=1"
+							if "%%j"=="TMP" set /a "ntmp=1"
+						)
+						del "%vsrt%.%%i.via.!nvia!.1" %fquiet%
 					)
 				)
 			)
@@ -559,6 +612,10 @@ rem			set "mbut=!mbut:/=\!"
 			rem Double backslash for 'findstr'
 			set "mbut=!mbut:\=\\!"
 		)
+
+		rem If executable path is empty, use current one
+		if "!mpwd!"=="" set "mpwd=!mdst!"
+		if "!mpwd!"=="" set "mpwd=%CD%"
 
 		rem Remove the ending backslash of path
 		call :cleanpath "!mexe!" && set "mexe=!pcln!"
@@ -714,7 +771,7 @@ if not "!vdeb!"=="" echo "vexe3"\mexe="!vexe!"\!mexe!
 							set "vexe=!vexe!!mexe!"
 						)
 						rem If command line started with a quote (note the hideous syntax)
-						if "!vexe:~0,1!"==^"^"^" set "vexe=!vexe!""
+						if "!vexe:~0,1!"==^"^"^" set "vexe=!vexe!^""
 if not "!vdeb!"=="" echo "vexe4"="!vexe!"
 rem						set "vexe=!vexe! "
 					)
@@ -728,7 +785,7 @@ rem						set "vexe=!vexe! "
 					if "%%j"=="BIN" set "vtmp=!vtmp!!mbin! "
 
 					rem File operation specific arguments
-					if "%%j"=="EXT" set "vtmp=!vtmp!"$[THIS]" "
+					if "%%j"=="EXT" set "vtmp=!vtmp!^"$[THIS]^" "
 					if "%%j"=="EXC" set "vtmp=!vtmp!!mexc! "
 					if "%%j"=="BUT" set "vtmp=!vtmp!!mbut! "
 					if "%%j"=="LST" set "vtmp=!vtmp!$[LIST] "
@@ -741,11 +798,11 @@ rem						set "vexe=!vexe! "
 						if "%%j"=="LIB" set "vtmp=!vtmp!!mlib! "
 						if "%%j"=="TMP" set "vtmp=!vtmp!!mtmp! "
 					) else (
-						if "%%j"=="ARG" type "%vsrt%.%%i.arg">>"%vsrt%.%%i.via"
-						if "%%j"=="DEF" type "%vsrt%.%%i.def">>"%vsrt%.%%i.via"
-						if "%%j"=="INC" type "%vsrt%.%%i.inc">>"%vsrt%.%%i.via"
-						if "%%j"=="LIB" type "%vsrt%.%%i.lib">>"%vsrt%.%%i.via"
-						if "%%j"=="TMP" type "%vsrt%.%%i.tmp">>"%vsrt%.%%i.via"
+rem						if "%%j"=="ARG" type "%vsrt%.%%i.via.arg">>"%vsrt%.%%i.via"
+rem						if "%%j"=="DEF" type "%vsrt%.%%i.via.def">>"%vsrt%.%%i.via"
+rem						if "%%j"=="INC" type "%vsrt%.%%i.via.inc">>"%vsrt%.%%i.via"
+rem						if "%%j"=="LIB" type "%vsrt%.%%i.via.lib">>"%vsrt%.%%i.via"
+rem						if "%%j"=="TMP" type "%vsrt%.%%i.via.tmp">>"%vsrt%.%%i.via"
 					)
 				)
 
@@ -765,7 +822,7 @@ if not "!vdeb!"=="" echo msrc=!msrc!\*.%%a
 					dir "!msrc!\*.%%a" %vdir% >>"%vsrt%.%%i.0" 2>nul
 				) else (
 					rem If no extension, execute at least once (ie. simple batch execution)
-					echo:> "%vsrt%.%%i.0" 2>nul
+					echo:>"%vsrt%.%%i.0" 2>nul
 					set "vcmd=$[FILE]"
 					call :adaptvcmd "%2" "!vexe!" "!msrc!" "!vrel!" "!mmov!" ""
 					echo Running '!pcmd!'...> "%vsrt%.%%i.1" 2>nul
@@ -878,6 +935,7 @@ rem						set "vrel=!vrel:/=\!"
 						if "!vrel:~-1!"=="/" set "vrel=!vrel:~0,-1!"
 						if "!vrel:~-1!"=="\" set "vrel=!vrel:~0,-1!"
 						call set "vrel=%%vrel:!msrc!=!mdst!%%"
+						call set "vrel=%%vrel:!mpwd!=.%%"
 
 if not "!vdeb!"=="" echo     Checking if file is newer... %clog%
 
@@ -896,7 +954,7 @@ if not "!vdeb!"=="" echo     Checking if file is newer... %clog%
 								attrib +r "!vobj!"
 								Rem Copy on destination file only if more recent
 rem								xcopy "%%a" "!vobj!" /d /y %quiet%
-								robocopy "%%a" "!vobj" /xo %quiet%
+								robocopy "%%a" "!vobj!" /xo %quiet%
 								rem If more recent, fails due to write protection
 								if not errorlevel 0 set "vchk=1"
 								attrib -r "!vobj!"
@@ -962,6 +1020,9 @@ if not "!vdeb!"=="" echo       Adapt destination file... %clog%
 									call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" ""
 								)
 								set "vcmd=!pcmd!"
+								rem Change separator
+								if not "!msep!"=="" call set "vcmd=%%vcmd:/=!msep!%%"
+								if not "!msep!"=="" call set "vcmd=%%vcmd:\=!msep!%%"
 								echo !vcmd!>>"%vlnk%.0"
 							)
 
@@ -982,56 +1043,79 @@ rem  echo Do it :/
 										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" ""
 									)
 									set "vcmd=!pcmd!"
+									rem Change separator
+									if not "!msep!"=="" call set "vcmd=%%vcmd:/=!msep!%%"
+									if not "!msep!"=="" call set "vcmd=%%vcmd:\=!msep!%%"
 								)
 rem  echo vcmd2="!vcmd!"
 							) else (
 								rem Del the via file
 								del "%lvia%.!cnxt!" %fquiet%
 
-								rem Adapt the via file
-								if exist "%vsrt%.%%i.via" for /f "delims=!" %%b in (%vsrt%.%%i.via) do (
-									rem Adapt the via line and store it
-									set "vcmd=%%b"
-									call :cleanvcmd && set "vcmd=!pcmd!"
-									if "!vcmd!"=="$[LIST]" (
-										rem Copy the list of source files if requested
-										if "%%i"=="LNK_" (
-											rem If a destination link files list exists, use it for linking
-											if exist "%vlnk%.0" (
-												rem Linking requires the destination link files list
-												type "%vlnk%.0">>"%lvia%.!cnxt!"
+								if not "!mcli!"=="" for %%j in (!mcli!) do (
+									set "nvia="
+
+									if "%%j"=="ARG" if !narg! gtr 0 set "nvia=arg"
+									if "%%j"=="DEF" if !ndef! gtr 0 set "nvia=def"
+									if "%%j"=="INC" if !ninc! gtr 0 set "nvia=inc"
+									if "%%j"=="LIB" if !nlib! gtr 0 set "nvia=lib"
+									if "%%j"=="TMP" if !ntmp! gtr 0 set "nvia=tmp"
+
+									if not "!nvia!"=="" (
+										rem Adapt the via file
+										if exist "%vsrt%.%%i.via.!nvia!" for /f "delims=!" %%b in (%vsrt%.%%i.via.!nvia!) do (
+											rem Adapt the via line and store it
+											set "vcmd=%%b"
+											call :cleanvcmd && set "vcmd=!pcmd!"
+											if "!vcmd!"=="$[LIST]" (
+												rem Copy the list of source files if requested
+												if "%%i"=="LNK_" (
+													rem If a destination link files list exists, use it for linking
+													if exist "%vlnk%.0" (
+														rem Linking requires the destination link files list
+														type "%vlnk%.0">>"%lvia%.!cnxt!"
+													) else (
+														rem Linking requires the original source files list
+														type "%vsrt%.%%i.0">>"%lvia%.!cnxt!"
+													)
+												) else (
+													type "%vsrt%.%%i.1">>"%lvia%.!cnxt!"
+												)
 											) else (
-												rem Linking requires the original source files list
-												type "%vsrt%.%%i.0">>"%lvia%.!cnxt!"
+												rem Adapt the command-line in !vcmd!
+												call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" "" && set "vcmd=!pcmd!"
+												rem Change separator
+												if not "!msep!"=="" call set "vcmd=%%vcmd:/=!msep!%%"
+												if not "!msep!"=="" call set "vcmd=%%vcmd:\=!msep!%%"
+												echo:!vcmd!>>"%lvia%.!cnxt!"
 											)
-										) else (
-											type "%vsrt%.%%i.1">>"%lvia%.!cnxt!"
 										)
 									) else (
-										rem Adapt the command-line in !vcmd!
-										call :adaptvcmd "%2" "%%a" "!msrc!" "!vrel!" "!mmov!" "" && set "vcmd=!pcmd!"
-										echo:!vcmd!>>"%lvia%.!cnxt!"
+										if "%%j"=="ARG" type "%vsrt%.%%i.via.arg">>"%lvia%.!cnxt!"
+										if "%%j"=="DEF" type "%vsrt%.%%i.via.def">>"%lvia%.!cnxt!"
+										if "%%j"=="INC" type "%vsrt%.%%i.via.inc">>"%lvia%.!cnxt!"
+										if "%%j"=="LIB" type "%vsrt%.%%i.via.lib">>"%lvia%.!cnxt!"
+										if "%%j"=="TMP" type "%vsrt%.%%i.via.tmp">>"%lvia%.!cnxt!"
 									)
 								)
 
 								rem Set the via file
-								set "vcmd=!mvia!"%lvia%.!cnxt!""
+								set "vcmd=!mvia!^"%lvia%.!cnxt!^""
 							)
 
 if not "!vdeb!"=="" echo       Process file... %clog%
 
 							rem Keep the expanded command line for debugging purpose
 							echo !vexe! !vcmd!>>"%vsrt%.%%i.2"
-							if not "!mvia!"=="" type "%lvia%.!cnxt!">>"%vsrt%.%%i.2"
+							if not "!mvia!"=="" (
+								type "%lvia%.!cnxt!">>"%vsrt%.%%i.2"
+								echo:>>"%vsrt%.%%i.2"
+							)
 
 							rem Display the file being processed
 							set "mrel=%%a"
 							call set "mrel=%%mrel:!msrc!=.%%"
 							echo   !mrel! %clog%
-
-							rem Log the executed command line (in case of lock conflict)
-							echo !vexe! !vcmd!>>"%vsrt%.%%i.3"
-							if not "!mvia!"=="" type "%lvia%.!cnxt!">>"%vsrt%.%%i.3"
 
 rem  echo vcmd3="!vcmd!"
 
@@ -1047,16 +1131,20 @@ rem								set "vcmd="
 							rem If command line not started with a quote, add them
 rem							if not "!vexe:~0,1!"==^"^"^" set vexe="!vexe!"
 
-							rem If executable path is empty, use current one
-							if "!mdst!"=="" set "mdst=%CD%"
-
 							rem Direct execution
-							start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
+							start "" /d "!mpwd!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
+
+							rem Log the executed command line (in case of lock conflict)
+							echo !vexe! !vcmd!>>"%vsrt%.%%i.3"
+							if not "!mvia!"=="" (
+								type "%lvia%.!cnxt!">>"%vsrt%.%%i.3"
+								echo:>>"%vsrt%.%%i.3"
+							)
 
 							rem Remote batch execution to catch errorlevel exit code
 rem FIXME: currently batch file error loggers unused (not enough parameters)
 							rem If the !vcmd! argument chain gets exploded and unresolved, use the via option
-rem							start "" /d "!mdst!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 "%lbat%.!cnxt!" "!vexe!" "!vcmd!"
+rem							start "" /d "!mpwd!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 "%lbat%.!cnxt!" "!vexe!" "!vcmd!"
 						)
 
 						rem Check exit code
@@ -1259,6 +1347,14 @@ if not "!vdeb!"=="" echo     read file str - %%m
 if not "!vdeb!"=="" echo     read file ret - !plin!
 		exit /b
 	)
+goto :eof
+
+:writevar
+	rem Parse and flush variable into file
+if not "!vdeb!"=="" echo writevar
+if not "!vdeb!"=="" echo   write line var - %1
+if not "!vdeb!"=="" echo   write file dst - %2
+	for %%l in (%1) echo %%l>>"%2"
 goto :eof
 
 :waiterr
