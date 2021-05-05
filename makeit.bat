@@ -55,6 +55,9 @@ rem %var% will access the parsed value and !var! the run-time value
 rem Beware: you'll scratch your head several times with this shit
 setlocal enabledelayedexpansion
 
+for /f "tokens=2 delims=:." %%x in ('chcp') do set cp=%%x
+chcp 1252>nul
+
 rem	@set "odir=%cd%"
 rem	cd %~dp0
 
@@ -1275,6 +1278,7 @@ rem cd "%odir%"
 
 		if "%1"=="quick" start "" "%vlog%"
 	)
+	chcp %cp%>nul
 goto :eof
 
 :copyline
