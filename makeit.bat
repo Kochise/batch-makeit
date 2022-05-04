@@ -261,6 +261,9 @@ if "0"=="!errorlevel!" (
 rem			echo vinc="!vinc:~0,8!" %clog%
 
 			if "LOC_DST="=="!vinc:~0,8!" (
+rem				set "vinc=!vinc:~8!"
+rem				call :expandpath "!vinc!" && set "vinc=!pexp!"
+rem				echo vinc="!vinc!"
 				rem Add configuration to the LOC_DST path
 				echo %%j\%2>>"%vslv%.0"
 			) else (
@@ -756,6 +759,14 @@ if not "!vdeb!"=="" echo mcpy=!mcpy!
 							if exist "%%j" copy /y "%%j" "!mdst!" %quiet%
 						)
 					)
+					
+					if not "!mmov!"=="" (
+						echo  Creating move folder... %clog%
+						mkdir "!mmov!" 2>nul
+						if not "!msrc!"=="!mmov!" (
+							robocopy "!msrc!" "!mmov!" /e /xf * %quiet%
+						)
+					)
 				)
 
 				rem Construct the argument chain
@@ -1134,8 +1145,15 @@ rem								set "vcmd="
 							rem If command line not started with a quote, add them
 rem							if not "!vexe:~0,1!"==^"^"^" set vexe="!vexe!"
 
-							rem Direct execution
-							start "" /d "!mpwd!" /low /affinity !hex! /b cmd /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
+							if "!mmov!"=="" (
+								rem Direct execution
+								start "" /d "!mpwd!" /low /affinity !hex! /b cmd /v:on /c 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd!
+							) else (
+								rem Execute and move source file (on success)
+								set "mrel=%%a"
+								call set "mrel=%%mrel:!msrc!=!mmov!%%"
+								start "" /d "!mpwd!" /low /affinity !hex! /b cmd /v:on /c " 1^>"%lcpu%.!cnxt!" 2^>^&1 !vexe! !vcmd! ^&^& move /y "%%a" "!mrel!" 1^>nul "
+							)
 
 							rem Log the executed command line (in case of lock conflict)
 							echo !vexe! !vcmd!>>"%vsrt%.%%i.3"
