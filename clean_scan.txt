@@ -1,0 +1,95 @@
+LOC_BAT=c:\Program Files
+LOC_EXE=${LOC_BAT}\ImageMagick
+#LOC_EXE=${LOC_BAT}\PDFtk Server
+
+LOC_SRC1=.\_TIF_DARK
+LOC_SRC2=.\_PNG_DARK
+LOC_SRC3=.\_PNG_LIGHT
+LOC_SRC4=.\_PNG_SORT
+LOC_SRC5=.\_TIF_NEW
+LOC_SRC6=.\_PDF_NEW
+LOC_SRC7=.\_JPG_NEW
+
+LOC_DST1=.\_PNG_DONE
+LOC_DST2=.\_PDF_DONE
+LOC_DST3=.\_JPG_DONE
+
+LOC_MOV=.\_TIF
+
+clean=TIF1_
+cleanj=JPG1_
+
+convert=TIF2_
+
+TIF1_EXE=magick.exe
+TIF1_URL=https://stackoverflow.com/questions/38254994/multiple-commands-with-imagemagick
+TIF1_CPU=-25%
+TIF1_SRC=${LOC_SRC5}
+TIF1_DST=${LOC_DST1}
+TIF1_CLI=LOC EXE EXT ARG TMP
+TIF1_EXT=tif
+TIF1_ARG=-quiet -limit thread 1 -auto-level -brightness-contrast 10x10 -despeckle +repage -normalize
+TIF1_TMP="$[LOC_DST]\$[NAME].png"
+
+TIF2_EXE=magick.exe
+TIF2_CPU=-25%
+TIF2_SRC=${LOC_SRC5}
+TIF2_DST=${LOC_DST1}
+TIF2_CLI=LOC EXE EXT ARG TMP
+TIF2_EXT=tif
+TIF2_ARG=-normalize
+TIF2_TMP="$[LOC_DST]\$[NAME].png"
+
+PNG2_EXE=magick.exe
+PNG2_CPU=-25%
+PNG2_SRC=${LOC_SRC2}
+PNG2_DST=${LOC_DST1}
+PNG2_CLI=LOC EXE EXT ARG TMP
+PNG2_EXT=png
+PNG2_ARG=-quiet -limit thread 1 -auto-level -brightness-contrast 10x10 -despeckle +repage -normalize
+PNG2_TMP="$[LOC_DST]\$[NAME].png"
+
+PNG3_EXE=magick.exe
+PNG3_CPU=-25%
+PNG3_SRC=${LOC_SRC3}
+PNG3_DST=${LOC_DST1}
+PNG3_CLI=LOC EXE EXT ARG TMP
+PNG3_EXT=png
+PNG3_ARG=-normalize
+PNG3_TMP="$[LOC_DST]\$[NAME].png"
+
+PNG4_EXE=magick.exe
+PNG4_CPU=-25%
+PNG4_SRC=${LOC_SRC4}
+PNG4_DST=${LOC_DST1}
+PNG4_CLI=LOC EXE EXT ARG TMP
+PNG4_EXT=png
+PNG4_ARG=-normalize
+PNG4_TMP="$[LOC_DST]\$[NAME].png"
+
+JPG1_EXE=magick.exe
+JPG1_CPU=-25%
+JPG1_SRC=${LOC_SRC7}
+JPG1_DST=${LOC_DST3}
+JPG1_CLI=LOC EXE EXT ARG TMP
+JPG1_EXT=jpg
+JPG1_ARG=-quiet -limit thread 1 -auto-level -brightness-contrast 10x10 -despeckle +repage -normalize
+JPG1_TMP="$[LOC_DST]\$[NAME].jpg"
+
+JPG2_EXE=magick.exe
+JPG2_CPU=-25%
+JPG2_SRC=${LOC_SRC7}
+JPG2_DST=${LOC_DST3}
+JPG2_CLI=LOC EXE EXT ARG TMP
+JPG2_EXT=jpg
+JPG2_ARG=-quiet -limit thread 1 -auto-level +repage -brightness-contrast 20x20 -despeckle +repage -gamma 0.6 +repage -normalize
+JPG2_TMP="$[LOC_DST]\$[NAME].jpg"
+
+PDF1_EXE=pdftk.exe
+PDF1_CPU=-25%
+PDF1_SRC=${LOC_SRC6}
+PDF1_DST=${LOC_DST1}
+PDF1_CLI=LOC EXE EXT ARG TMP
+PDF1_EXT=pdf
+PDF1_ARG=cat 2-end output
+PDF1_TMP="$[LOC_DST]\$[NAME].pdf"

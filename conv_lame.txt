@@ -1,0 +1,25 @@
+LOC_BAT=c:\Program Files (x86)\Audacity
+LOC_EXE=${LOC_BAT}\Lame For Audacity
+
+LOC_SRC=.\_IN
+LOC_DST=.\_OUT
+LOC_MOV=.\_DONE
+
+# --- WAV to MP3 ---
+
+wav=WAV_
+
+WAV_EXE=lame.exe
+WAV_URL=http://ryanve.com/lame/
+WAV_URL=http://ecmc.rochester.edu/ecmc/docs/lame/switchs.html
+WAV_CPU=-25%
+WAV_SRC=${LOC_SRC}
+WAV_DST=${LOC_DST}
+WAV_CLI=LOC EXE ARG EXT TMP
+WAV_EXT=wav
+
+WAV_ARG=--abr 128 --quiet
+#WAV_ARG=-b 128
+#WAV_ARG=-V2 --vbr-new --quiet
+
+WAV_TMP="$[LOC_DST]\$[NAME].mp3"

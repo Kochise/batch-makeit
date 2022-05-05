@@ -1,0 +1,21 @@
+LOC_BAT=c:\Program Files
+LOC_EXE=${LOC_BAT}\Tesseract-OCR
+
+LOC_SRC=.\_IN
+LOC_DST=.\_OUT
+LOC_MOV=.\_DONE
+
+convert=OCR_
+
+OCR_EXE=tesseract.exe
+OCR_URL=https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html
+OCR_CPU=-25%
+OCR_SRC=${LOC_SRC}
+OCR_DST=${LOC_DST}
+OCR_CLI=LOC EXE EXT TMP ARG
+OCR_EXT=jpg
+
+OCR_ARG=--tessdata-dir "${LOC_EXE}\tessdata" -l eng
+#OCR_ARG=testing/eurotext-eng -l eng
+
+OCR_TMP="$[LOC_DST]\$[NAME]"

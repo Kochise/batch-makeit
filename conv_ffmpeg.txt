@@ -1,0 +1,65 @@
+LOC_BAT=c:\FFMPEG
+LOC_EXE=${LOC_BAT}\bin
+
+LOC_SRC=.\_IN
+LOC_DST=.\_OUT
+LOC_MOV=.\_DONE
+
+# --- M4A to MP3 ---
+
+m4a=M4A_
+
+M4A_EXE=ffmpeg.exe
+M4A_URL=https://trac.ffmpeg.org/wiki/Encode/MP3
+M4A_URL=https://coderwall.com/p/zbevoq/convert-m4a-to-mp3-with-ffmpeg
+M4A_URL=https://superuser.com/questions/704493/ffmpeg-convert-m4a-to-mp3-without-significant-loss
+M4A_CPU=-25%
+M4A_SRC=${LOC_SRC}
+M4A_DST=${LOC_DST}
+M4A_MOV=${LOC_MOV}
+M4A_CLI=LOC EXE ARG EXT LIB TMP
+M4A_EXT=m4a
+
+M4A_ARG=-i
+
+#M4A_LIB=-acodec libmp3lame -aq
+M4A_LIB=-c:a libmp3lame -q:a 5
+#M4A_LIB=-c:v copy -c:a libmp3lame -q:a 5
+#M4A_LIB=-c:a libmp3lame -b:a 96k
+M4A_LIB=-hide_banner -loglevel error
+
+M4A_TMP="$[LOC_DST]\$[NAME].mp3"
+
+# --- WAV to MP3 ---
+
+wav=WAV_
+
+WAV_EXE=ffmpeg.exe
+WAV_CPU=-25%
+WAV_SRC=${LOC_SRC}
+WAV_DST=${LOC_DST}
+WAV_MOV=${LOC_MOV}
+WAV_CLI=LOC EXE ARG EXT LIB TMP
+WAV_EXT=wav
+
+WAV_ARG=-y
+WAV_ARG=-i
+
+WAV_LIB=-vn
+#WAV_LIB=-c:a mp3
+#WAV_LIB=-codec:a libmp3lame
+#WAV_LIB=-ac 1 -ab 128k -ar 24000
+#WAV_LIB=-ac 1 -ab 128k -ar 48000
+#WAV_LIB=-ab 128k -ar 48000
+WAV_LIB=-ar 48000
+#WAV_LIB=-b:a ORIGINAL
+#WAV_LIB=-b:a 320k
+#WAV_LIB=-vbr 5
+#WAV_LIB=-crf 10
+WAV_LIB=-q:a 2
+#WAV_LIB=-cutoff 15000
+#WAV_LIB=-preset slow
+WAV_LIB=-loglevel error
+#WAV_LIB=-v quiet -stats
+
+WAV_TMP="$[LOC_DST]\$[NAME].mp3"
