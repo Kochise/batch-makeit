@@ -1,4 +1,5 @@
 @echo off
+if "%~f0" neq "%tmp%\%~nx0" (type "%~f0" | find "" /v>"%tmp%\%~nx0" && call "%tmp%\%~nx0" %* & del "%tmp%\%~nx0" & exit /b)
 
 rem Extended Batch Makefile by David KOCH v2.9 2013-2019
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
