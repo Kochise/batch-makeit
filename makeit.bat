@@ -1,5 +1,5 @@
 @echo off
-if "%~f0" neq "%tmp%\%~nx0" (type "%~f0" | find "" /v>"%tmp%\%~nx0" && call "%tmp%\%~nx0" %* & del "%tmp%\%~nx0" & exit /b)
+if "%~dp0" neq "%tmp%\" (set "cd=%~dp0" & (if not exist "%tmp%\%~nx0" (find "" /v<"%~f0" >"%tmp%\%~nx0")) & call "%tmp%\%~nx0" %* & del "%tmp%\%~nx0" 2>nul & exit /b) else (if "%cd:~-1%"=="\" set "cd=%cd:~0,-1%")
 
 rem Extended Batch Makefile by David KOCH v2.9 2013-2023
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
@@ -56,6 +56,7 @@ rem %var% will access the parsed value and !var! the run-time value
 rem Beware: you'll scratch your head several times with this shit
 setlocal enabledelayedexpansion
 
+rem Set code page to utf-8 (/!\ this file MUST be in utf-8)
 for /f "tokens=2 delims=:." %%x in ('chcp') do set cp=%%x
 chcp 1252>nul
 
@@ -185,7 +186,7 @@ REM	echo %%*>>"%lbat%.%%c.bat"
 )
 
 rem Print the header
-echo --- Extended Batch Makefile v2.9.1 - %fdate% @ %ftime% ------------------- %clog%
+echo --- Extended Batch Makefile v2.9.2 - %fdate% @ %ftime% ------------------- %clog%
 echo Cd : %CD% %clog%
 echo Makeit cmd : %1 %clog%
 echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
@@ -1512,6 +1513,7 @@ goto :eof
 	set "pcmd=!pcmd:$[DISK]=%~d2!"
 	set "pcmd=!pcmd:$[FOLD]=%~p2!"
 	set "pcmd=!pcmd:$[PATH]=%~dp2!"
+	set "pcmd=!pcmd:$[LANG]=%~dpn2!"
 	set "pcmd=!pcmd:$[NAME]=%~n2!"
 	set "pcmd=!pcmd:$[DOSN]=%~s2!"
 	set "pcmd=!pcmd:$[EXT]=%~x2!"
