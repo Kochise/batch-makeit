@@ -1,7 +1,7 @@
 @echo off
 if "%~dp0" neq "%tmp%\%guid%\" (set "guid=%~nx0.%~z0" & set "cd=%~dp0" & (if not exist "%tmp%\%~nx0.%~z0\%~nx0" (mkdir "%tmp%\%~nx0.%~z0" 2>nul & find "" /v<"%~f0" >"%tmp%\%~nx0.%~z0\%~nx0")) & call "%tmp%\%~nx0.%~z0\%~nx0" %* & rmdir /s /q "%tmp%\%~nx0.%~z0" 2>nul & exit /b) else (if "%cd:~-1%"=="\" set "cd=%cd:~0,-1%")
 
-rem Extended Batch Makefile by David KOCH v2.9.3 2013-2023
+rem Extended Batch Makefile by David KOCH v2.9.4 2013-2023
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument	%0	%1		%2			%3					%4
 rem					|		|			|					|
@@ -193,7 +193,7 @@ REM	echo echo *=%%*>>"%lbat%.%%c.bat"
 )
 
 rem Print the header
-echo --- Extended Batch Makefile v2.9.3 - %fdate% @ %ftime% ------------------- %clog%
+echo --- Extended Batch Makefile v2.9.4 - %fdate% @ %ftime% ------------------- %clog%
 echo Cd : %CD% %clog%
 echo Makeit cmd : %1 %clog%
 echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
@@ -974,13 +974,8 @@ if not "!vdeb!"=="" echo     Checking if file is newer... %clog%
 							rem Try in relative folder next
 							if not exist "!vobj!" set "vobj=!vrel!\!vrem!"
 							if exist "!vobj!" (
-								attrib +r "!vobj!"
-								Rem Copy on destination file only if more recent
-REM								xcopy "%%a" "!vobj!" /d /y %quiet%
-								robocopy "%%a" "!vobj!" /xo %quiet%
-								rem If more recent, fails due to write protection
-								if not errorlevel 0 set "vchk=1"
-								attrib -r "!vobj!"
+								rem If more recent
+								xcopy /D /L /Y "%%a" "!vobj!" | findstr /BC:"1 ">nul && set "vchk=1"
 							) else (
 								rem No object file found? Objection! Generate it...
 								set "vchk=1"
@@ -1001,19 +996,14 @@ if not "!mdep!"=="TOTO" if exist "!vobj!" if not "!mdep!"=="" (
 							rem Try in relative folder next
 							if not exist "!vdep!" set "vdep=!vrel!\%%~na.!mdep!"
 							if exist "!vdep!" (
-								attrib +r "!vobj!"
 								for /f "delims=!" %%b in (!vdep!) do (
 									rem Get the dependency line
 									set "vtst=%%b"
 									rem Parse dependency line to keep only the dependency file path
 									call set "vtst=%%vtst:!vrem!: =%%"
-									Rem Copy on destination file only if more recent
-REM									xcopy "!vtst!" "!vobj!" /d /y %quiet%
-									robocopy "!vtst!" "!vobj!" /xo %quiet%
-									rem If more recent, fails due to write protection
-									if not errorlevel 0 set "vchk=1"
+									rem If more recent
+									xcopy /D /L /Y "!vtst!" "!vobj!" | findstr /BC:"1 ">nul && set "vchk=1"
 								)
-								attrib -r "!vobj!"
 							) else (
 								rem No dependency file? Well, misconfiguration maybe...
 								set "vchk=1"
