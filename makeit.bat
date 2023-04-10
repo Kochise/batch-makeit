@@ -1,7 +1,7 @@
 @echo off
 if "%~dp0" neq "%tmp%\%guid%\" (set "guid=%~nx0.%~z0" & set "cd=%~dp0" & (if not exist "%tmp%\%~nx0.%~z0\%~nx0" (mkdir "%tmp%\%~nx0.%~z0" 2>nul & find "" /v<"%~f0" >"%tmp%\%~nx0.%~z0\%~nx0")) & call "%tmp%\%~nx0.%~z0\%~nx0" %* & rmdir /s /q "%tmp%\%~nx0.%~z0" 2>nul & exit /b) else (if "%cd:~-1%"=="\" set "cd=%cd:~0,-1%")
 
-rem Extended Batch Makefile by David KOCH v2.9 2013-2023
+rem Extended Batch Makefile by David KOCH v2.9.3 2013-2023
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument	%0	%1		%2			%3					%4
 rem					|		|			|					|
@@ -176,17 +176,24 @@ set "lerr=%vdst%\%2.lock.err"
 set "lvia=%vdst%\%2.lock.via"
 
 rem Create the error logger batch
-rem FIXME: currently batch file error loggers unused (not enough parameters)
 for /l %%c in (%cmin%,1,%cmax%) do (
 	echo ^@echo off>>"%lbat%.%%c.bat"
-REM	echo echo %%~1 %%~2 %%~3 %%~4 %%~5 %%~6 %%~7 %%~8 %%~9>>"%lbat%.%%c.bat"
-	echo %%~1 %%~2 %%~3 %%~4 %%~5 %%~6 %%~7 %%~8 %%~9>>"%lbat%.%%c.bat"
-REM	echo %%*>>"%lbat%.%%c.bat"
+REM	echo echo 1=%%~1>>"%lbat%.%%c.bat"
+REM	echo echo 2=%%~2>>"%lbat%.%%c.bat"
+REM	echo echo 3=%%~3>>"%lbat%.%%c.bat"
+REM	echo echo 4=%%~4>>"%lbat%.%%c.bat"
+REM	echo echo 5=%%~5>>"%lbat%.%%c.bat"
+REM	echo echo 6=%%~6>>"%lbat%.%%c.bat"
+REM	echo echo 7=%%~7>>"%lbat%.%%c.bat"
+REM	echo echo 8=%%~8>>"%lbat%.%%c.bat"
+REM	echo echo 9=%%~9>>"%lbat%.%%c.bat"
+REM	echo echo *=%%*>>"%lbat%.%%c.bat"
+	echo %%*>>"%lbat%.%%c.bat"
 	echo if not errorlevel 0 echo "%%errorlevel%%"^> %lerr%.%%c>>"%lbat%.%%c.bat"
 )
 
 rem Print the header
-echo --- Extended Batch Makefile v2.9.2 - %fdate% @ %ftime% ------------------- %clog%
+echo --- Extended Batch Makefile v2.9.3 - %fdate% @ %ftime% ------------------- %clog%
 echo Cd : %CD% %clog%
 echo Makeit cmd : %1 %clog%
 echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
