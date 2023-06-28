@@ -1,7 +1,9 @@
-@echo off
-if "%~dp0" neq "%tmp%\%guid%\" (set "guid=%~nx0.%~z0" & set "cd=%~dp0" & (if not exist "%tmp%\%~nx0.%~z0\%~nx0" (mkdir "%tmp%\%~nx0.%~z0" 2>nul & find "" /v<"%~f0" >"%tmp%\%~nx0.%~z0\%~nx0")) & call "%tmp%\%~nx0.%~z0\%~nx0" %* & rmdir /s /q "%tmp%\%~nx0.%~z0" 2>nul & exit /b) else (if "%cd:~-1%"=="\" set "cd=%cd:~0,-1%")
+@echo off && setlocal EnableDelayedExpansion
+if "%~dp0" neq "!guid!\" (set "guid=%tmp%\crlf.%~nx0.%~z0" & set "cd=%~dp0" & (if not exist "!guid!\%~nx0" (mkdir "!guid!" 2>nul & find "" /v<"%~f0" >"!guid!\%~nx0")) & call "!guid!\%~nx0" %* & rmdir /s /q "!guid!" 2>nul & exit /b) else (if "%cd:~-1%"=="\" set "cd=%cd:~0,-1%")
 
-rem Extended Batch Makefile by David KOCH v2.9.4 2013-2023
+set "cver=2.9.5"
+
+rem Extended Batch Makefile by David KOCH v%cver% 2013-2023
 rem Command : makeit cmd "make_file" ["exclude_file.txt"] ["log_file"/"nolog"]
 rem Argument	%0	%1		%2			%3					%4
 rem					|		|			|					|
@@ -51,14 +53,14 @@ rem http://waynes-world-it.blogspot.fr/
 rem http://ss64.com/nt/
 rem http://ss64.com/nt/syntax-args.html
 
-rem For correct string substitution, need delayed variable expansion
-rem %var% will access the parsed value and !var! the run-time value
-rem Beware: you'll scratch your head several times with this shit
-setlocal enabledelayedexpansion
-
-rem Set code page to utf-8 (/!\ this file MUST be in utf-8)
+rem Save code page then set it to utf-8 (/!\ this file MUST be in utf-8)
 for /f "tokens=2 delims=:." %%x in ('chcp') do set cp=%%x
-chcp 1252>nul
+chcp 65001>nul
+REM	chcp 1252>nul
+
+rem Change default helpers
+set "quiet=1>nul 2>nul"
+set "fquiet=/f /q 1>nul 2>nul"
 
 REM	@set "odir=%cd%"
 REM	cd /d %~dp0
@@ -139,10 +141,6 @@ set "csep="
 set "cdef=-D"
 set "cinc=-I"
 
-rem Change default helpers
-set "quiet=1>nul 2>nul"
-set "fquiet=/f /q 1>nul 2>nul"
-
 rem Create the folder (because Windows cannot do it automatically when writing a file)
 mkdir "%vdst%" 2>nul
 
@@ -193,7 +191,7 @@ REM	echo echo *=%%*>>"%lbat%.%%c.bat"
 )
 
 rem Print the header
-echo --- Extended Batch Makefile v2.9.4 - %fdate% @ %ftime% ------------------- %clog%
+echo --- Extended Batch Makefile v%cver% - %fdate% @ %ftime% ------------------- %clog%
 echo Cd : %CD% %clog%
 echo Makeit cmd : %1 %clog%
 echo Makeit cnf : !vsrc:%vrel%=.\! %clog%
@@ -1294,6 +1292,7 @@ REM	cd "%odir%"
 
 		if "%1"=="quick" start "" "%vlog%"
 	)
+
 	chcp %cp%>nul
 goto :eof
 
